@@ -1,33 +1,22 @@
 /**
- * Defines the /login route.
- * @file
- */
-
-import passport from 'passport';
-import JSONResponse from '../lib/json-response';
-import '../lib/passport-setup';
-
-/**
- * Authenticates a user.
+ * A "catch all" route that sends back 401 - Unauthorized.
  * @export
  */
+
+import JSONResponse from '../lib/json-response';
+
 export default {
   // The method this route applies to.
-  method: 'post',
+  method: 'get',
   // Moves this route up/down based on "z-index"
   specificity: 0,
   // The permission the user needs to acces this route
   // If falsy the 'none' permission will be applied automatically.
-  permission: 'login',
+  permission: 'none',
   // A string used to match routes (i.e app[method]([match]))
-  match: '/login',
+  match: '/unauthorized',
   // The app[method] callback handler
   handler: (req, res) => {
-    passport.authenticate('local')(req, res, () => {
-      res.status(200).json(new JSONResponse({
-        success: true,
-        user: req.user,
-      }));
-    });
+    res.status(401).json(new JSONResponse({ message: 'Unauthorized' }));
   },
 };

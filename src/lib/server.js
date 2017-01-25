@@ -7,6 +7,11 @@ import morgan from 'morgan';
 import fs from 'fs-extra-promise';
 import path from 'path';
 import ConnectRoles from 'connect-roles';
+import cookieParser from 'cookie-parser';
+import bodyParser from 'body-parser';
+import expressSession from 'express-session';
+import passport from 'passport';
+import permissions from '../permissions';
 
 import { inspect, sortRoute } from './utils';
 import constants from './constants';
@@ -14,8 +19,7 @@ import constants from './constants';
 import middlewares from '../middlewares';
 import routes from '../routes';
 
-const debug = debuggr('api-server');
-morgan.token('worker', () => process.pid);
+const debug = debuggr(`api-server-${process.pid}`);
 
 /**
  * A mapping of logging formats for node environments.
@@ -24,7 +28,7 @@ morgan.token('worker', () => process.pid);
 const loggingFormats = {
   default: 'combined',
   production: 'combined',
-  development: 'Worker :worker - :method :url :status :response-time ms - :res[content-length]',
+  development: 'dev',
 };
 
 /**
@@ -53,7 +57,7 @@ const DEFAULT_OPTIONS = {
  * @returns {undefined}
  */
 export function permissionFailureHandler(req, res) {
-  res.status(401).json({ message: 'Unauthorized', success: false });
+  res.redirect('/unauthorized');
 }
 
 /**
@@ -86,9 +90,7 @@ export default class Server {
       });
     });
 
-    debug('Server created with options: %s', inspect(options));
-
-    // Express instance
+    debug('Server created with options:%s', inspect(options));
     this.app = express();
 
     // Create http or https server based on options
@@ -96,15 +98,16 @@ export default class Server {
       ? https.createServer(httpsOptions, this.app)
       : http.createServer(this.app);
 
-    // Setup user roles
+    // Setup user roles, function failureHandler defines what happens when a user is unauthorized.
     this.user = new ConnectRoles({ failureHandler: permissionFailureHandler });
-    this.app.use(this.user.middleware());
 
-    // Only allow unauthenticated users to "access home page"
-    this.user.use((req, action) => {
-      if (!req.isAuthenticated) return action === 'access home page';
-      return true;
-    });
+    // Basic middlwares for authentication, body parsing, etc.
+    this.app.use(this.user.middleware());
+    this.app.use(cookieParser());
+    this.app.use(bodyParser.urlencoded({ extended: true }));
+    this.app.use(expressSession({ secret: 'gW45V1GvmVZs4T', resave: false, saveUninitialized: false }));
+    this.app.use(passport.initialize());
+    this.app.use(passport.session());
   }
 
   /**
@@ -155,19 +158,23 @@ export default class Server {
 
           // Setup middlewares
           _.each(middlewares, (middleware, name) => {
-            debug('Using middleware "%s"', name);
+            debug('Initializing middleware "%s"', name);
             this.app.use(middleware);
           });
 
+          // Callback for when a route is triggered
           const onRoute = (route) => {
-            const { match, handler, permission } = route;
-
-            // If a permission was defined, check that the user has the permission,
-            // else just call the route handler.
-            return permission && permission !== 'none'
-              ? this.app[route.method.toLowerCase()](match, this.user.can(permission), handler)
-              : this.app[route.method.toLowerCase()](match, handler);
+            const { method, match, handler, permission } = route;
+            debug('Initializing route %s %s', method.toUpperCase(), match);
+            const perm = _.isString(permission) ? permission : 'none';
+            return this.app[method.toLowerCase()](match, this.user.can(perm), handler);
           };
+
+          // Define user permissions
+          _.each(permissions, (fn, permission) => {
+            debug('Initializing permission "%s"', permission);
+            this.user.use(permission, fn);
+          });
 
           // Define all routes
           _.each(_.flatten(_.toArray(routes)).sort(sortRoute), onRoute);

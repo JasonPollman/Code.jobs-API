@@ -17,10 +17,15 @@ const DEFAULT_OPTIONS = {
 
 /**
  * Controlls both the master and slave cluster workers.
- * @export
  * @class Cluster
+ * @export
  */
 export default class Cluster {
+  /**
+   * Creates an instance of Cluster.
+   * @param {object} [opts={}] Options for this Cluster instance.
+   * @memberof Cluster
+   */
   constructor(opts = {}) {
     const options = _.merge({}, DEFAULT_OPTIONS, _.isObject(opts) ? opts : {});
     const { workers } = options;

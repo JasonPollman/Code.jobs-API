@@ -3,7 +3,6 @@
  * @file
  */
 
-import passport from 'passport';
 import JSONResponse from '../lib/json-response';
 import '../lib/passport-setup';
 
@@ -13,21 +12,16 @@ import '../lib/passport-setup';
  */
 export default {
   // The method this route applies to.
-  method: 'post',
+  method: 'get',
   // Moves this route up/down based on "z-index"
   specificity: 0,
   // The permission the user needs to acces this route
   // If falsy the 'none' permission will be applied automatically.
-  permission: 'login',
+  permission: 'none',
   // A string used to match routes (i.e app[method]([match]))
-  match: '/login',
+  match: '/ping',
   // The app[method] callback handler
   handler: (req, res) => {
-    passport.authenticate('local')(req, res, () => {
-      res.status(200).json(new JSONResponse({
-        success: true,
-        user: req.user,
-      }));
-    });
+    res.status(200).json(new JSONResponse({ success: true, message: 'pong' }));
   },
 };
