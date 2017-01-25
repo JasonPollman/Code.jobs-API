@@ -13,8 +13,7 @@ export default {
   // A string used to match routes, i.e app.get([match])
   match: '/login',
   // The app[method] callback handler
-  handler: (req, res, next) => {
+  handler: (req, res) => {
     res.status(200).json({ message: 'Logged in', success: true });
-    next();
   },
 };

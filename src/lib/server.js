@@ -154,10 +154,12 @@ export default class Server {
           this.app.use(morgan(this.loggingFormat));
 
           // Setup middlewares
-          _.each(middlewares, middleware => this.app.use(middleware));
+          _.each(middlewares, (middleware, name) => {
+            debug('Using middleware "%s"', name);
+            this.app.use(middleware);
+          });
 
-          // Define all routes
-          _.each(_.toArray(routes).sort(sortRoute), (route) => {
+          const onRoute = (route) => {
             const { match, handler, permission } = route;
 
             // If a permission was defined, check that the user has the permission,
@@ -165,7 +167,10 @@ export default class Server {
             return permission && permission !== 'none'
               ? this.app[route.method.toLowerCase()](match, this.user.can(permission), handler)
               : this.app[route.method.toLowerCase()](match, handler);
-          });
+          };
+
+          // Define all routes
+          _.each(_.flatten(_.toArray(routes)).sort(sortRoute), onRoute);
 
           resolve(this);
         } catch (e) {
