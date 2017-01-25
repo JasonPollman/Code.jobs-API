@@ -53,7 +53,7 @@ const DEFAULT_OPTIONS = {
  * @returns {undefined}
  */
 export function permissionFailureHandler(req, res) {
-  res.status(401).json({ message: 'Unauthorized jason', success: false });
+  res.status(401).json({ message: 'Unauthorized', success: false });
 }
 
 /**
