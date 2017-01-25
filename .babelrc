@@ -1,0 +1,30 @@
+{
+  "sourceMaps": "inline",
+  "retainLines": true,
+  "comments": true,
+  "compact": "auto",
+  "minified": false,
+  "presets": [
+    "latest"
+  ],
+  "plugins": [
+    "transform-class-properties",
+    "source-map-support-for-6",
+    "transform-object-rest-spread",
+    "transform-promise-to-bluebird",
+    "transform-runtime"
+  ],
+  "env": {
+    "production": {
+      "retainLines": false,
+      "comments": false,
+      "compact": true,
+      "minified": true
+    },
+    "test": {
+      "plugins": [
+        "istanbul"
+      ]
+    }
+  }
+}
