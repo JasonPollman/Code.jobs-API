@@ -17,9 +17,9 @@ export async function getCache(id) {
  * @param {string} id The key to retrieve the cache using.
  */
 export async function forgetCache(user) {
-  if (!_.isObject(user)) return user;
+  if (!_.isObject(user)) return;
 
-  return await Promise.all([
+  await Promise.all([
     redis.forget(redis.key('users', user._id)), // eslint-disable-line no-underscore-dangle
     redis.forget(redis.key('users', user.username)),
   ]);
@@ -37,6 +37,7 @@ export async function setCache(user) {
     redis.set(redis.key('users', user._id), user), // eslint-disable-line no-underscore-dangle
     redis.set(redis.key('users', user.username), user),
   ]);
+
   return user;
 }
 
@@ -88,7 +89,8 @@ export async function getUserByUsername(mongo, data) {
  */
 export async function getUsersByName(mongo, data) {
   const users = mongo.collection('users');
-  const { name } = data;
+  let name = data;
+  if (!_.isObject(name)) name = {};
 
   return await new Promise((resolve, reject) =>
     users.find({ name }).toArray((err, doc) => (err ? reject(err) : resolve(doc))));
@@ -134,7 +136,8 @@ export async function updateUserByUsername(mongo, data) {
   // User was updated, purge cache
   let user = await getUserByUsername(mongo, data);
   await forgetCache(user);
-  user = await getUserByUsername(mongo, data);
 
+  // Get new user object to append to request
+  user = await getUserByUsername(mongo, data);
   return { results: results.result, user };
 }

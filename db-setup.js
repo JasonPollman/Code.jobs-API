@@ -51,10 +51,7 @@ db.createUser({
   ],
 });
 
-
-
 const codeJobs = db.getSiblingDB('code-jobs-api');
-
 codeJobs.users.remove({});
 codeJobs.users.insertMany([
   {
@@ -75,6 +72,4 @@ codeJobs.users.insertMany([
     },
     group: 'admin',
   },
-], (err) => {
-  console.log(error);
-});
+]);

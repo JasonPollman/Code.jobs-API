@@ -1,21 +1,11 @@
-import os from 'os';
 import cluster from 'cluster';
 import debuggr from 'debug';
-import _ from 'lodash';
 import Server from './server';
 import data from '../data';
 import redis from './redis';
+import constants from './constants';
 
 const debug = debuggr('api-cluster');
-
-/**
- * Default options for each Cluster instance.
- * @type {object<any>}
- */
-const DEFAULT_OPTIONS = {
-  // The number of workers to start
-  workers: os.cpus().length,
-};
 
 /**
  * Controlls both the master and slave cluster workers.
@@ -28,19 +18,12 @@ export default class Cluster {
    * @param {object} [opts={}] Options for this Cluster instance.
    * @memberof Cluster
    */
-  constructor(opts = {}) {
-    const options = _.merge({}, DEFAULT_OPTIONS, _.isObject(opts) ? opts : {});
-
-    // Setup the number of workers to fork
-    this.workers = options.workers;
-    // Options for the server instances
-    this.options = options;
-
+  constructor() {
     debug(cluster.isMaster ? 'Master is running, pid %s' : 'Worker is running, pid %s', process.pid);
     if (cluster.isWorker) return;
 
     // Fork workers, and setup worker events
-    for (let i = 0; i < this.workers; i++) this.fork();
+    for (let i = 0; i < constants.WORKER_COUNT; i++) this.fork();
 
     // Fork a new worker if one dies
     cluster.on('exit', (worker, code, signal) => {
@@ -100,7 +83,12 @@ export default class Cluster {
     ]);
 
     // Setup the server for each worker
-    this.server = new Server(this.options);
+    this.server = new Server({
+      https: constants.SERVER.HTTPS,
+      httpsOptions: constants.SERVER.HTTPS_OPTIONS,
+      port: constants.SERVER.PORT,
+    });
+
     await this.server.start();
     return this;
   }

@@ -21,7 +21,10 @@ export default [
     handler: async (req, res) => {
       const username = req.params.username;
       const user = await data.exec('getUserByUsername', { username });
-      return res.status(200).json(new JSONResponse({ success: true, user }));
+      return res.status(200).json(new JSONResponse({
+        success: true,
+        user: { ...user, password: undefined },
+      }));
     },
   },
   {
@@ -33,7 +36,10 @@ export default [
     handler: async (req, res) => {
       const id = req.params.id;
       const user = await data.exec('getUserById', { id });
-      return res.status(200).json(new JSONResponse({ success: true, user }));
+      return res.status(200).json(new JSONResponse({
+        success: true,
+        user: { ...user, password: undefined },
+      }));
     },
   },
   {
@@ -44,7 +50,10 @@ export default [
     match: '/users',
     handler: async (req, res) => {
       const users = await data.exec('getAllUsers');
-      return res.status(200).json(new JSONResponse({ success: true, users }));
+      return res.status(200).json(new JSONResponse({
+        success: true,
+        users: users.map(user => ({ ...user, password: undefined })),
+      }));
     },
   },
   {
@@ -52,11 +61,14 @@ export default [
     method: 'get',
     specificity: 0,
     permission: 'VIEW_OTHER_USERS_INFO',
-    match: '/users/name/:name',
+    match: '/users/name/:first/:last',
     handler: async (req, res) => {
-      const name = req.params.name;
-      const users = await data.exec('getUsersByName', { name });
-      return res.status(200).json(new JSONResponse({ success: true, users }));
+      const name = { ...req.params };
+      const users = await data.exec('getUsersByName', name);
+      return res.status(200).json(new JSONResponse({
+        success: true,
+        users: users.map(user => ({ ...user, password: undefined })),
+      }));
     },
   },
   {
@@ -67,7 +79,10 @@ export default [
     match: '/user',
     handler: async (req, res) => {
       const user = await data.exec('getUserByUsername', { username: req.user.username });
-      return res.status(200).json(new JSONResponse({ success: true, user }));
+      return res.status(200).json(new JSONResponse({
+        success: true,
+        user: { ...user, password: undefined },
+      }));
     },
   },
   {
@@ -78,7 +93,11 @@ export default [
     match: '/user',
     handler: async (req, res) => {
       const { user, results } = await data.exec('updateUserByUsername', { ...req.body, username: req.user.username });
-      return res.status(200).json(new JSONResponse({ success: !!results.ok, message: 'User updated', user }));
+      return res.status(200).json(new JSONResponse({
+        success: !!results.ok,
+        message: 'User updated',
+        user: { ...user, password: undefined },
+      }));
     },
   },
 ];

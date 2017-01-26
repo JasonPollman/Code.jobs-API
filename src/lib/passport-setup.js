@@ -5,8 +5,25 @@
 
 import passport from 'passport';
 import { Strategy } from 'passport-local';
+import { Strategy as GitHubStrategy } from 'passport-github2';
 import data from '../data';
 import { hashUserPassword } from './utils';
+import constants from './constants';
+
+// Configure the local strategy for use by Passport.
+// The local strategy requires a `verify` function which receives the credentials
+// (`username` and `password`) submitted by the user.  The function must verify
+// that the password is correct and then invoke `cb` with a user object, which
+// will be set at `req.user` in route handlers after authentication.
+passport.use(new GitHubStrategy(
+  {
+    clientID: constants.GITHUB.CLIENT_ID,
+    clientSecret: constants.GITHUB.CLIENT_SECRET,
+    callbackURL: constants.GITHUB.CALLBACK_URL,
+  },
+  async (accessToken, refreshToken, profile, done) =>
+    await data.findOrCreateUser({ githubId: profile.id }, (err, user) => done(err, user)),
+));
 
 // Configure the local strategy for use by Passport.
 // The local strategy requires a `verify` function which receives the credentials
@@ -23,8 +40,8 @@ passport.use(new Strategy(async (username, password, cb) => {
   }
 
   return (!user || hashUserPassword({ username, password }) !== user.password)
-      ? cb(new Error('Invalid credentials'))
-      : cb(null, user);
+    ? cb(new Error('Invalid credentials'))
+    : cb(null, user);
 }));
 
 // Configure Passport authenticated session persistence.
