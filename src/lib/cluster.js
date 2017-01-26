@@ -3,6 +3,8 @@ import cluster from 'cluster';
 import debuggr from 'debug';
 import _ from 'lodash';
 import Server from './server';
+import data from '../data';
+import redis from './redis';
 
 const debug = debuggr('api-cluster');
 
@@ -28,10 +30,9 @@ export default class Cluster {
    */
   constructor(opts = {}) {
     const options = _.merge({}, DEFAULT_OPTIONS, _.isObject(opts) ? opts : {});
-    const { workers } = options;
 
     // Setup the number of workers to fork
-    this.workers = workers;
+    this.workers = options.workers;
     // Options for the server instances
     this.options = options;
 
@@ -88,6 +89,15 @@ export default class Cluster {
     // Master has nothing to do here, return
     if (cluster.isMaster) return this;
     process.title += ' Worker';
+
+    // Setup a database and redis connection
+    debug('Connection to database...');
+    debug('Connecting to redis client...');
+
+    await Promise.all([
+      data.connect(),
+      redis.connect(),
+    ]);
 
     // Setup the server for each worker
     this.server = new Server(this.options);

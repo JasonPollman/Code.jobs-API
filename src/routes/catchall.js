@@ -10,7 +10,7 @@ export default {
   specificity: Number.MAX_VALUE,
   // The permission the user needs to acces this route
   // If falsy the 'none' permission will be applied automatically.
-  permission: 'none',
+  permission: 'NONE',
   // A string used to match routes (i.e app[method]([match]))
   match: '*',
   // The app[method] callback handler

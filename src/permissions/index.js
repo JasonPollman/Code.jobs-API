@@ -3,6 +3,8 @@
  * @file
  */
 
+import _ from 'lodash';
+
 /**
  * This object stores key/value pairs between a permission and it's handler.
  * Return true to allow the user to continue, or false to send a 401 response.
@@ -11,10 +13,22 @@
  * @see https://www.npmjs.com/package/connect-roles
  * @type {object<function>}
  */
-export default {
+export default Object.freeze({
+
+  // ----------------------------------- GENERIC PERMISSISONS ----------------------------------- //
   // No permission, everyone is allowed to access.
-  none: () => true,
-  // Everyone can login
-  // Might extend this in the future to only allow non-blocked ip addresses, etc.
-  login: () => true,
-};
+  NONE: () => true,
+  // Everyone can login...
+  LOGIN: () => true,
+
+  // ------------------------------ PERMISSIONS DEALING WITH USERS ------------------------------ //
+  // Only admins can view other user's information
+  VIEW_OTHER_USERS_INFO: req => _.isObject(req.user) && req.user.group === 'admin',
+  // Only admins can update other user's information
+  UPDATE_OTHER_USERS_INFO: req => _.isObject(req.user) && req.user.group === 'admin',
+  // Authenticated users can view their own info
+  VIEW_OWN_INFO: req => req.isAuthenticated(),
+  // Authenticated users can view their own info
+  UPDATE_OWN_INFO: req => req.isAuthenticated(),
+
+});

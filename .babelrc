@@ -10,6 +10,8 @@
   "plugins": [
     "transform-class-properties",
     "source-map-support-for-6",
+    "add-module-exports",
+    "transform-export-extensions",
     "transform-object-rest-spread",
     "transform-promise-to-bluebird",
     "transform-runtime"

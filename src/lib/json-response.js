@@ -5,6 +5,7 @@
  */
 
 import _ from 'lodash';
+import constants from './constants';
 
 /**
  * Default fields to be merged with every response.
@@ -27,7 +28,20 @@ export default class Response {
    * @memberof Response
    */
   constructor(response = {}) {
-    const resp = _.isPlainObject(response) ? response : { message: response ? response.toString() : '' };
+    let resp;
+
+    if (_.isError(response)) {
+      // Response is error, format to return "error like" object.
+      resp = {
+        success: false,
+        code: response.code,
+        message: response.message,
+        stack: constants.NODE_ENV !== 'production' ? response.stack.split(/\r?\n/g) : undefined,
+      };
+    } else {
+      // Response is non-error
+      resp = _.isPlainObject(response) ? response : { message: response ? response.toString() : '' };
+    }
 
     // All responses *must* have the time, message, and success fields.
     const properties = _.merge({ time: Date.now() }, DEFAULT_RESPONSE, resp);

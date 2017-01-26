@@ -17,11 +17,15 @@ export default {
   specificity: 0,
   // The permission the user needs to acces this route
   // If falsy the 'none' permission will be applied automatically.
-  permission: 'none',
+  permission: 'NONE',
   // A string used to match routes (i.e app[method]([match]))
-  match: '/ping',
+  match: ['/ping', '/ping/:timeout'],
   // The app[method] callback handler
   handler: (req, res) => {
-    res.status(200).json(new JSONResponse({ success: true, message: 'pong' }));
+    const timeout = parseInt(req.params.timeout, 10) || 0;
+
+    setTimeout(() => {
+      res.status(200).json(new JSONResponse({ success: true, message: 'pong', timeout, worker: process.pid }));
+    }, timeout);
   },
 };

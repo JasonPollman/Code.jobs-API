@@ -12,7 +12,7 @@ export default {
   specificity: 0,
   // The permission the user needs to acces this route
   // If falsy the 'none' permission will be applied automatically.
-  permission: 'none',
+  permission: 'NONE',
   // A string used to match routes (i.e app[method]([match]))
   match: '/unauthorized',
   // The app[method] callback handler

@@ -13,7 +13,8 @@ import expressSession from 'express-session';
 import passport from 'passport';
 import permissions from '../permissions';
 
-import { inspect, sortRoute } from './utils';
+import JSONResponse from './json-response';
+import { sortRoute } from './utils';
 import constants from './constants';
 
 import middlewares from '../middlewares';
@@ -28,7 +29,7 @@ const debug = debuggr(`api-server-${process.pid}`);
 const loggingFormats = {
   default: 'combined',
   production: 'combined',
-  development: 'dev',
+  development: 'combined',
 };
 
 /**
@@ -90,7 +91,6 @@ export default class Server {
       });
     });
 
-    debug('Server created with options:%s', inspect(options));
     this.app = express();
 
     // Create http or https server based on options
@@ -104,6 +104,7 @@ export default class Server {
     // Basic middlwares for authentication, body parsing, etc.
     this.app.use(this.user.middleware());
     this.app.use(cookieParser());
+    this.app.use(bodyParser.json({ type: 'application/*+json' }));
     this.app.use(bodyParser.urlencoded({ extended: true }));
     this.app.use(expressSession({ secret: 'gW45V1GvmVZs4T', resave: false, saveUninitialized: false }));
     this.app.use(passport.initialize());
@@ -119,6 +120,28 @@ export default class Server {
     if (this.http.listening) return null;
     debug('Server starting on port: %s', this.port);
     const promises = [];
+
+    // Callback for when a route is triggered
+    const onRoute = (route) => {
+      const { method, match, handler, permission } = route;
+      debug('Initializing route %s %s', method.toUpperCase(), match);
+      const perm = _.isString(permission) ? _.snakeCase(permission).toUpperCase() : 'NONE';
+
+      return this.app[method.toLowerCase()](
+        match,
+        this.user.can(perm),
+        async (req, res, ...rest) => {
+          try {
+            return await handler(req, res, ...rest, this);
+          } catch (e) {
+            // Show the error and stack in non-production env,
+            // show unauthoirzed in production env.
+            return constants.NODE_ENV !== 'production'
+              ? res.status(500).json(new JSONResponse(e))
+              : res.redirect('/unauthorized');
+          }
+        });
+    };
 
     promises.push(
       // Setup server listeners
@@ -154,21 +177,13 @@ export default class Server {
 
           // Setup stdout/file logging
           this.app.use(morgan(this.loggingFormat, { stream }));
-          this.app.use(morgan(this.loggingFormat));
+          this.app.use(morgan('dev'));
 
           // Setup middlewares
           _.each(middlewares, (middleware, name) => {
             debug('Initializing middleware "%s"', name);
             this.app.use(middleware);
           });
-
-          // Callback for when a route is triggered
-          const onRoute = (route) => {
-            const { method, match, handler, permission } = route;
-            debug('Initializing route %s %s', method.toUpperCase(), match);
-            const perm = _.isString(permission) ? permission : 'none';
-            return this.app[method.toLowerCase()](match, this.user.can(perm), handler);
-          };
 
           // Define user permissions
           _.each(permissions, (fn, permission) => {
@@ -179,9 +194,9 @@ export default class Server {
           // Define all routes
           _.each(_.flatten(_.toArray(routes)).sort(sortRoute), onRoute);
 
-          resolve(this);
+          return resolve(this);
         } catch (e) {
-          reject(e);
+          return reject(e);
         }
       }),
     );
