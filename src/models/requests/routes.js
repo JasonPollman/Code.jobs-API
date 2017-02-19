@@ -32,24 +32,4 @@ export default [
       return res.status(200).respond({ success: true, payload });
     },
   },
-  {
-    // Creates a request
-    method: 'post',
-    permission: 'create logs',
-    match: '/requests/create',
-    handler: async (req, res) => {
-      const payload = await dataManager.execute('requests/create', req.body);
-      return res.status(200).respond({ success: true, payload });
-    },
-  },
-  {
-    // Deletes a request
-    method: 'post',
-    permission: 'delete logs',
-    match: '/requests/delete',
-    handler: async (req, res) => {
-      const payload = await dataManager.execute('requests/delete', req.body);
-      return res.status(200).respond({ success: true, payload });
-    },
-  },
 ];
