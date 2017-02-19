@@ -1,0 +1,1 @@
+SELECT `id`, `time`, `body`, `request`, `headers` FROM responses ORDER BY @sortBy !sortDirection LIMIT :limit OFFSET :offset

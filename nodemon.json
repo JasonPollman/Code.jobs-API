@@ -1,0 +1,9 @@
+{
+  "verbose": false,
+  "ext": "js json sql",
+  "watch": [
+    "nodemon.json",
+    "package.json",
+    "src/*"
+  ]
+}

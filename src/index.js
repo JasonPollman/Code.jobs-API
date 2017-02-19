@@ -10,3 +10,4 @@ export async function start(options = {}) {
 }
 
 export default {};
+Object.assign(exports.default, { start });

@@ -3,24 +3,22 @@ import https from 'https';
 import express from 'express';
 import _ from 'lodash';
 import debuggr from 'debug';
-import morgan from 'morgan';
-import fs from 'fs-extra-promise';
 import path from 'path';
 import ConnectRoles from 'connect-roles';
 import cookieParser from 'cookie-parser';
 import bodyParser from 'body-parser';
 import expressSession from 'express-session';
 import passport from 'passport';
-import permissions from '../permissions';
+import cluster from 'cluster';
 
-import JSONResponse from './json-response';
-import { sortRoute } from './utils';
+import { sortRoutes, has, IMMUTABLE_VISIBLE } from './utils';
 import constants from './constants';
 
 import middlewares from '../middlewares';
 import routes from '../routes';
+import modelRoutes from '../models';
 
-const debug = debuggr(`api-server-${process.pid}`);
+const debug = debuggr(`api:server:${cluster.isMaster ? 'master' : 'worker'}:${process.pid}`);
 
 /**
  * A mapping of logging formats for node environments.
@@ -51,14 +49,98 @@ const DEFAULT_OPTIONS = {
   loggingFilename: 'api-server-[month]-[date]-[year].log',
 };
 
+
 /**
- * Defines how unauthorized accesses to routes are handled.
- * @param {Request} req A request object.
- * @param {Response} res A response object.
+ * Wraps each route handler with a try/catch.
+ * @param {function} handler The route handler to wrap.
+ * @returns {function} The wrapped route handler.
+ */
+function wrapRouteHandler(server, handler) {
+  return async (req, res, ...rest) => {
+    try {
+      return await handler.call(server.app, req, res, ...rest);
+    } catch (e) {
+      // If the error didn't define a status, make it 500.
+      if (!has(e, 'status')) e.status = 500;
+
+      // In prod, redirect to /error, otherwise responsd with the error contents.
+      return constants.NODE_ENV !== 'production'
+        ? res.status(500).respond(e)
+        : res.redirect('/error');
+    }
+  };
+}
+
+/**
+ * Defines a route on server "server".
+ * @param {Server} server The Server object to define the route for.
+ * @param {object} route The route definition object.
  * @returns {undefined}
  */
-export function permissionFailureHandler(req, res) {
-  res.redirect('/unauthorized');
+function defineRoute(server, route) {
+  const { method = 'all', match, handler, permission } = route;
+
+  // Setup route permission middleware
+  const perm = _.isString(permission) ? _.kebabCase(permission).toLowerCase() : 'none';
+  const checkPermission = server.user.can(perm);
+  const fn = method.toLowerCase();
+
+  debug('Initializing route %O %O', method.toUpperCase(), match);
+  server.app[fn](match, checkPermission, wrapRouteHandler(server, handler));
+}
+
+/**
+ * Initializes (adds) all the middlewares from the ../middlewares file to the server.
+ * @param {Server} server The Server object to add the middlewares to.
+ * @returns {undefined}
+ */
+function initializeMiddlewares(server) {
+  _.each(middlewares, (middleware, name) => {
+    debug('Initializing middleware %O', name);
+    server.app.use(middleware);
+  });
+}
+
+/**
+ * Creates a promise that resolves when the server is done listening.
+ * @param {any} server The server to wait for the "listening" event on.
+ * @returns {Promise} Resolves once the server is listening, or rejects on "error".
+ */
+function waitForServerToListen(server) {
+  return new Promise((resolve, reject) => {
+    const onError = e => reject(e);
+    const onListen = () => resolve();
+
+    // Handles when the server starts listening
+    // Resolve this promise and remove the error handler
+    server.http.on('listening', () => {
+      debug('Server now listening port: %O', server.port);
+      server.http.removeListener('error', onError);
+      onListen();
+    });
+
+    // Handles when the server encounters an initial error.
+    // Rejects this promise and remove the listening handler.
+    server.http.on('error', (e) => {
+      debug('Error starting server: %O', e);
+      server.http.removeListener('listening', onError);
+      onError(e);
+    });
+  });
+}
+
+/**
+ * Defines how unauthorized accesses to routes are handled.
+ * @param {object} request The HTTP request object.
+ * @param {object} response The HTTP response object.
+ * @returns {undefined}
+ */
+export function permissionFailureHandler(request, response) {
+  response.redirect('/unauthorized');
+}
+
+export function permissionHandler(req, action) {
+  return true;
 }
 
 /**
@@ -80,16 +162,8 @@ export default class Server {
       .replace(/\[year\]/g, d.getFullYear());
 
     // Assign all option values to this object
-    _.each(options, (option, name) => {
-      if (_.isUndefined(option)) return;
-
-      Object.defineProperty(this, name, {
-        configurable: false,
-        writable: false,
-        enumerable: true,
-        value: option,
-      });
-    });
+    _.each(options, (value, name) =>
+      Object.defineProperty(this, name, { ...IMMUTABLE_VISIBLE, value }));
 
     this.app = express();
 
@@ -100,6 +174,7 @@ export default class Server {
 
     // Setup user roles, function failureHandler defines what happens when a user is unauthorized.
     this.user = new ConnectRoles({ failureHandler: permissionFailureHandler });
+    this.user.use(permissionHandler);
 
     // Basic middlwares for authentication, body parsing, etc.
     this.app.use(this.user.middleware());
@@ -116,93 +191,17 @@ export default class Server {
    * @returns {undefined}
    */
   async start() {
-    // Server already listening
     if (this.http.listening) return null;
-    debug('Server starting on port: %s', this.port);
-    const promises = [];
+    initializeMiddlewares(this);
 
-    // Callback for when a route is triggered
-    const onRoute = (route) => {
-      const { method, match, handler, permission } = route;
-      debug('Initializing route %s %s', method.toUpperCase(), match);
-      const perm = _.isString(permission) ? _.snakeCase(permission).toUpperCase() : 'NONE';
-
-      return this.app[method.toLowerCase()](
-        match,
-        this.user.can(perm),
-        async (req, res, ...rest) => {
-          try {
-            return await handler(req, res, ...rest, this);
-          } catch (e) {
-            // Show the error and stack in non-production env,
-            // show unauthoirzed in production env.
-            return constants.NODE_ENV !== 'production'
-              ? res.status(500).json(new JSONResponse(e))
-              : res.redirect('/unauthorized');
-          }
-        });
-    };
-
-    promises.push(
-      // Setup server listeners
-      new Promise((resolve, reject) => {
-        const onError = e => reject(e);
-        const onListen = () => resolve();
-
-        // Handles when the server starts listening
-        // Resolve this promise and remove the error handler
-        this.http.on('listening', () => {
-          debug('Server now listening port: %s', this.port);
-          this.http.removeListener('error', onError);
-          onListen();
-        });
-
-        // Handles when the server encounters an initial error.
-        // Rejects this promise and remove the listening handler.
-        this.http.on('error', (e) => {
-          debug('Error starting server: %s', e.message);
-          this.http.removeListener('listening', onError);
-          onError(e);
-        });
-      }),
-      // Setup logging
-      new Promise(async (resolve, reject) => {
-        try {
-          await fs.ensureDirAsync(this.loggingDirectory);
-          const loggingDestination = path.join(this.loggingDirectory, this.loggingFilename);
-          const stream = fs.createWriteStream(loggingDestination, {
-            flags: 'a',
-            defaultEncoding: 'utf8',
-          });
-
-          // Setup stdout/file logging
-          this.app.use(morgan(this.loggingFormat, { stream }));
-          this.app.use(morgan('dev'));
-
-          // Setup middlewares
-          _.each(middlewares, (middleware, name) => {
-            debug('Initializing middleware "%s"', name);
-            this.app.use(middleware);
-          });
-
-          // Define user permissions
-          _.each(permissions, (fn, permission) => {
-            debug('Initializing permission "%s"', permission);
-            this.user.use(permission, fn);
-          });
-
-          // Define all routes
-          _.each(_.flatten(_.toArray(routes)).sort(sortRoute), onRoute);
-
-          return resolve(this);
-        } catch (e) {
-          return reject(e);
-        }
-      }),
-    );
+    // Flatten out all routes, sort them by specificity,
+    // and add them to the server express app.
+    _.flatten(_.toArray(routes).concat(_.toArray(modelRoutes)))
+      .sort(sortRoutes)
+      .forEach(route => defineRoute(this, route));
 
     this.http.listen(this.port);
-    return await Promise.all(promises);
+    return await waitForServerToListen(this);
   }
 
   /**
@@ -210,10 +209,8 @@ export default class Server {
    * @returns {undefined}
    */
   async stop() {
-    // Server not started yet...
     if (!this.http.listening) return;
-
-    debug('Stopping server on port: %s', this.port);
+    debug('Stopping server on port: %O', this.port);
     await new Promise(resolve => this.http.close(resolve));
   }
 }

@@ -8,5 +8,8 @@ import * as api from '../';
 // Set the process title
 process.title = 'Code.jobs API Server';
 
+// Ensure we have a NODE_ENV
+process.env.NODE_ENV = process.env.NODE_ENV || 'production';
+
 // Start the server.
-(async () => api.start())().catch(e => process.nextTick(() => { throw e; }));
+api.start().catch(e => process.nextTick(() => { throw e; }));

@@ -1,0 +1,1 @@
+SELECT `id`, `name`, `description` FROM roles ORDER BY @sortBy !sortDirection LIMIT :limit OFFSET :offset

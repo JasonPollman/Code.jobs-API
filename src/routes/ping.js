@@ -1,31 +1,51 @@
 /**
- * Defines the /login route.
+ * Defines the /ping route.
  * @file
  */
 
-import JSONResponse from '../lib/json-response';
+import os from 'os';
 import '../lib/passport-setup';
 
 /**
- * Authenticates a user.
+ * A ping/health check route.
  * @export
  */
 export default {
   // The method this route applies to.
   method: 'get',
-  // Moves this route up/down based on "z-index"
-  specificity: 0,
-  // The permission the user needs to acces this route
-  // If falsy the 'none' permission will be applied automatically.
-  permission: 'NONE',
   // A string used to match routes (i.e app[method]([match]))
   match: ['/ping', '/ping/:timeout'],
   // The app[method] callback handler
-  handler: (req, res) => {
-    const timeout = parseInt(req.params.timeout, 10) || 0;
+  handler: (request, response) => {
+    console.log('I AM HERE');
+    const timeout = parseInt(request.params.timeout, 10) || 0;
+    const payload = {
+      process: {
+        pid: process.pid,
+        uid: process.getuid(),
+        env: process.env.NODE_ENV,
+        version: process.version,
+        uptime: process.uptime(),
+        argv: process.argv,
+        cpu: process.cpuUsage(),
+      },
+      os: {
+        uptime: os.uptime(),
+        platform: os.platform(),
+        release: os.release(),
+        hostname: os.hostname(),
+        cpus: os.cpus(),
+      },
+    };
 
     setTimeout(() => {
-      res.status(200).json(new JSONResponse({ success: true, message: 'pong', timeout, worker: process.pid }));
+      response.status(200).respond({
+        success: true,
+        message: 'pong',
+        worker: process.pid,
+        timeout,
+        payload,
+      });
     }, timeout);
   },
 };

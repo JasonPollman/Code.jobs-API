@@ -3,11 +3,10 @@
  * @file
  */
 
-import catchall from './catchall';
+import catchall from './catch';
 import login from './login';
 import ping from './ping';
 import unauthorized from './unauthorized';
-import user from './user';
 
 /**
  * All routes *must* be defined here, otherwise they won't get picked up!
@@ -18,5 +17,4 @@ export default {
   login,
   ping,
   unauthorized,
-  user,
 };

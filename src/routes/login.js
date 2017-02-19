@@ -59,6 +59,31 @@ export default [
     },
   },
   {
+    // Log in using GitHub strategy
+    method: 'post',
+    specificity: 0,
+    permission: 'LOGIN',
+    match: '/login/linkedin',
+    handler: (req, res) => {
+      if (req.isAuthenticated()) {
+        return res.status(200).json(new JSONResponse({
+          success: true,
+          message: 'already logged in',
+          user: { ...req.user, password: undefined },
+        }));
+      }
+
+      return passport.authenticate('linked', { scope: ['user:email'] })(req, res, (e) => {
+        if (e) return res.status(401).json(new JSONResponse(e));
+        return res.status(200).json(new JSONResponse({
+          success: true,
+          message: 'log in successful',
+          user: { ...req.user, password: undefined },
+        }));
+      });
+    },
+  },
+  {
     // Callback for GitHub login
     method: 'post',
     specificity: 0,
