@@ -102,7 +102,7 @@ export function walkObject(object, fn, assign = false, maxDepth = null, chain = 
   if (_.isNumber(maxDepth) && depth >= maxDepth) return object;
 
   _.each(object, (val, key) => {
-    const results = fn(val, key, object, [...chain]);
+    const results = fn(val, key, object, [...chain, key]);
     const o = object;
 
     if (assign) o[key] = results;
@@ -113,34 +113,16 @@ export function walkObject(object, fn, assign = false, maxDepth = null, chain = 
 }
 
 /**
- * Clamps a number between 0 and Number.MAX_VALUE, inclusive.
- * @param {number} n The number to clamp.
- * @returns {number} The clamped value of n.
+ * Parses all JSON.strings within an object up to "depth".
+ * @param {object} obj The object to resolve it's properties JSON strings.
+ * @param {number} [depth=2] The maximum depth to walk.
+ * @returns {object} The parsed object.
  * @export
  */
-export function finiteGreaterThanZero(n) {
-  return _.isNumber(n) ? _.clamp(n, 0, Number.MAX_VALUE) : n;
-}
+export function resolveJSONStrings(obj, depth = 2) {
+  const onProperty = (val) => {
+    try { return JSON.parse(val); } catch (e) { return val; }
+  };
 
-/**
- * Validates a route object.
- * @param {object} route The route object to validate.
- * @param {string} category The "category" (or export name) of the route object.
- * @returns {object} The passed in route object.
- * @export
- */
-export function validateRoute(route, category) {
-  const { handler, match } = route;
-
-  if (!_.isFunction(handler)) {
-    throw new TypeError(
-      `Route listed in "${category}" must have a callback function as the value for property "handler".`);
-  }
-
-  if (!Array.isArray(match) && !_.isRegExp(match) && !_.isString(match)) {
-    throw new TypeError(
-      `Route listed in "${category}" must have a string, Array, or RegExp value for property "match".`);
-  }
-
-  return route;
+  return walkObject(obj, onProperty, true, depth);
 }

@@ -1,1 +1,0 @@
-SELECT `id`, `time`, `body`, `request`, `headers` FROM responses WHERE @field=:value

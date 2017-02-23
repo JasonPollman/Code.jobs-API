@@ -1,11 +1,15 @@
-import requests from './requests';
-import responses from './responses';
-import roles from './roles';
-import users from './users';
+/**
+ * Exports all the various data models
+ * @file
+ */
+
+import user from './user';
 
 export default {
-  requests,
-  responses,
-  roles,
-  users,
+  user,
 };
+
+export async function getModel(key) {
+  return exports.default[key] ? exports.default[key].model : undefined;
+}
+

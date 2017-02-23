@@ -4,7 +4,7 @@
  */
 
 import catchall from './catch';
-import login from './login';
+import error from './error';
 import ping from './ping';
 import unauthorized from './unauthorized';
 
@@ -14,7 +14,7 @@ import unauthorized from './unauthorized';
  */
 export default {
   catchall,
-  login,
+  error,
   ping,
   unauthorized,
 };

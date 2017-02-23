@@ -4,7 +4,6 @@
  */
 
 import os from 'os';
-import '../lib/passport-setup';
 
 /**
  * A ping/health check route.
@@ -17,7 +16,6 @@ export default {
   match: ['/ping', '/ping/:timeout'],
   // The app[method] callback handler
   handler: (request, response) => {
-    console.log('I AM HERE');
     const timeout = parseInt(request.params.timeout, 10) || 0;
     const payload = {
       process: {

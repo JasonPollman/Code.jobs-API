@@ -4,6 +4,7 @@
   "watch": [
     "nodemon.json",
     "package.json",
+    "config.json",
     "src/*"
   ]
 }

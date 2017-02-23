@@ -1,1 +1,0 @@
-SELECT `id`, `email` FROM users ORDER BY @sortBy !sortDirection LIMIT :limit OFFSET :offset

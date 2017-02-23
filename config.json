@@ -1,0 +1,112 @@
+{
+  // CODE.JOBS API SERVER CONFIGURATION
+  // -----------------------------------------------------------------------------------------------
+  // This JSON5 file contains all settings for the Code Jobs API Server.
+  // The "*" key contains base settings for all environments.
+  // You can override a base setting by specifying the same key under another environment namespace.
+  //
+  // You can also override each value by using environment variables.
+  // Nested variables can be overwritten by replacing the dot (".") with an underscore.
+  // For example, the SERVER.PORT option would become SERVER_PORT on the command line.
+  // -----------------------------------------------------------------------------------------------
+
+  "*": {
+    "SERVER": {
+      // HTTPS options as passed to https.createServer([options]).
+      // If an object is provided here, HTTPS will be used instead of HTTP.
+      "HTTPS_CONFIG": null,
+      // The port for the HTTP/HTTPS server to listen on.
+      // Default is 1337
+      "PORT": 1337,
+      // Extra headers.
+      // This is useful on a per-environment basis.
+      "EXTRA_HEADERS": null
+    },
+    "CLUSTER": {
+      // The number of worker processes to fork.
+      // IF <= 0, the number of available CPU cores - 1 will be used.
+      "WORKER_COUNT": 0,
+      // The number of restarts each worker is allowed to have before a fatal error is thrown.
+      // This is *restarts* so, 2 restarts + 1 initial start is 3 starts total.
+      "WORKER_RESTARTS_MAX": 2,
+      // Sets each worker's restart count to zero after the provided number of milliseconds.
+      // If <= 0 or falsy, the worker's restart count will never reset.
+      "WORKER_RESTARTS_RESET_AFTER": 5000,
+      // The number of milliseconds to delay before allowing *any* restarts.
+      // This is useful in the event the worker file has a syntax error and the master will
+      // immediately refork workers until "WORKER_RESTARTS_ALLOWED" is exceeded.
+      "WORKER_RESTART_DELAY": 5000
+    },
+    "REDIS": {
+      // Set to false to disable redis caching.
+      "ENABLED": true,
+      // The redis server's hostname.
+      "HOST": "localhost",
+      // The port the redis server is listening on.
+      "PORT": 6379
+    },
+    "DATABASE": {
+      // If true the database tables will be synced on startup.
+      "SYNC": true,
+      // The database hostname.
+      "HOST": "localhost",
+      // The port the database is listening on.
+      "PORT": 3306,
+      // Don't hard code authentication credentials!
+      "USER": null,
+      // Again, don't hard code authentication credentials!
+      "PASS": null,
+      // The default database to use.
+      "SCHEMA": "codejobs",
+      // Connection pool configuration.
+      // This is passed to Sequelize:
+      // @see http://docs.sequelizejs.com/en/v3/docs/getting-started/#setting-up-a-connection
+      "POOL_CONFIG": {
+        "idle": 5000,
+        "min": 0,
+        "max": 10
+      }
+    },
+    "DATABASE_LOGGING": {
+      // Set to false to disable database request/response logging
+      "ENABLED": true,
+      // What to log...
+      // If REQUESTS is true, all requests will be logged.
+      // If RESPONSES is true, all responses will be logged.
+      "LOG": {
+        "REQUESTS": true,
+        "RESPONSES": true
+      },
+      // If true, the response body will also be stored in the response log.
+      // This can get expensive, so it is disabled by default.
+      "CAPTURE_RESPONSE_BODY": false
+    },
+    // A list of middlewares to disable (by export name)
+    "DISABLED_MIDDLEWARES": {},
+    // A list of route categories to disable (by export name)
+    "DISABLED_ROUTES": {}
+  },
+
+  // Development Environment
+  "development": {
+    "SERVER": {
+      "EXTRA_HEADERS": {
+        "X-Environment": "development"
+      }
+    },
+    "DATABASE": {
+      "USER": "root",
+      "PASS": "Eastwood9518*"
+    }
+  },
+
+  // Production Environment
+  "production": {
+    "DATABASE": {
+      "SYNC": false
+    },
+    "DISABLED_ROUTES": {
+      "ping": true
+    }
+  }
+}

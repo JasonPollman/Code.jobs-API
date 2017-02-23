@@ -1,1 +1,0 @@
-SELECT `id`, `name`, `description` FROM roles WHERE @field=:value
