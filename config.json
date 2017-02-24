@@ -11,6 +11,10 @@
   // -----------------------------------------------------------------------------------------------
 
   "*": {
+    // If true, "first run" tasks will be run.
+    // This includes setting up database users, etc.
+    // This will only run in a *non* production environment, otherwise, it will be ignored.
+    "FIRST_RUN": false,
     "SERVER": {
       // HTTPS options as passed to https.createServer([options]).
       // If an object is provided here, HTTPS will be used instead of HTTP.
@@ -18,9 +22,45 @@
       // The port for the HTTP/HTTPS server to listen on.
       // Default is 1337
       "PORT": 1337,
+      // The maximum number of requests allower per ip, per minute.
+      // Set to 0 (zero) to disable
+      "REQUESTS_PER_MINUTE_LIMIT": 250,
       // Extra headers.
       // This is useful on a per-environment basis.
-      "EXTRA_HEADERS": null
+      "EXTRA_HEADERS": null,
+      // Headers to ignore.
+      // This is useful on a per-environment basis.
+      "DISABLE_HEADERS": null,
+      // If true, routes that have the property "requiresValidAppId" set to true,
+      // will require a valid "X-Application-Identifier" header value that maps
+      // to an application record within the applications table.
+      "APP_ID_VALIDATION_ENABLED": true,
+      // A list of middlewares to disable (by export name)
+      // This is a set of key/value pairs where key is the middleware export name and value is
+      // a boolean (true for enabled, false for disabled).
+      "DISABLED_MIDDLEWARES": {},
+      // A list of route categories to disable (by export name)
+      // This is a set of key/value pairs where key is the middleware export name and value is
+      // a boolean (true for enabled, false for disabled).
+      "DISABLED_ROUTES": {},
+      // CORS Header Settings
+      // Used by the CORS middleware, disabled the "cors" middleware will make these
+      // settings irrelevant. These can be set to null to ignore a specific header.
+      "CORS": {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Max-Age": 600,
+        "Access-Control-Allow-Credentials": false,
+        "Access-Control-Allow-Headers": [
+          "Content-Type",
+          "X-Requested-With",
+          "X-Appplication-Identifier"
+        ],
+        "Access-Control-Allow-Methods": [
+          "GET",
+          "POST",
+          "OPTIONS"
+        ]
+      }
     },
     "CLUSTER": {
       // The number of worker processes to fork.
@@ -65,7 +105,9 @@
         "idle": 5000,
         "min": 0,
         "max": 10
-      }
+      },
+      // The maximum allowable number of records per request
+      "MAXIMUM_RECORD_COUNT": 500
     },
     "DATABASE_LOGGING": {
       // Set to false to disable database request/response logging
@@ -80,16 +122,14 @@
       // If true, the response body will also be stored in the response log.
       // This can get expensive, so it is disabled by default.
       "CAPTURE_RESPONSE_BODY": false
-    },
-    // A list of middlewares to disable (by export name)
-    "DISABLED_MIDDLEWARES": {},
-    // A list of route categories to disable (by export name)
-    "DISABLED_ROUTES": {}
+    }
   },
 
   // Development Environment
   "development": {
     "SERVER": {
+      "APP_ID_VALIDATION_ENABLED": false,
+      "REQUESTS_PER_MINUTE_LIMIT": 0,
       "EXTRA_HEADERS": {
         "X-Environment": "development"
       }
@@ -100,8 +140,28 @@
     }
   },
 
+  // Test Environment
+  "test": {
+    "EXTENDS": "development",
+    "SERVER": {
+      "EXTRA_HEADERS": {
+        "X-Environment": "test"
+      }
+    }
+  },
+
   // Production Environment
   "production": {
+    "SERVER": {
+      "APP_ID_VALIDATION_ENABLED": true,
+      "REQUESTS_PER_MINUTE_LIMIT": 500,
+      "DISABLE_HEADERS": {
+        "X-Application-Name": true,
+        "X-Response-Time": true,
+        "X-Request-Limit": true,
+        "X-Requests-Remaining": true
+      }
+    },
     "DATABASE": {
       "SYNC": false
     },

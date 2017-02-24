@@ -7,6 +7,8 @@ import util from 'util';
 import crypto from 'crypto';
 import _ from 'lodash';
 
+export const NOOP_IDENT = x => x;
+
 /**
  * Used to spread into Object.defineProperties.
  * @type {object<boolean>}
@@ -143,4 +145,45 @@ export function validateRoute(route, category) {
   }
 
   return route;
+}
+
+/**
+ * Converts an hrtime tuple to milliseconds
+ * @param {Array<number>} hrtime An hrtime tuple.
+ * @returns {number} The number of milliseconds representing the hrtime tuple.
+ * @export
+ */
+export function hrtimeToMilliseconds(hrtime) {
+  return (((hrtime[0] * 1e+9) + hrtime[1]) / 1e6);
+}
+
+/**
+ * Returns the boolean equivalent or the original value.
+ * @param {any} value The value to inspect.
+ * @returns {boolean} True, false or the original value.
+ * @export
+ */
+export function getBoolOrOriginalValue(value) {
+  const bools = ['true', true, 'false', false];
+  return _.includes(bools, value) ? value === 'true' || value === true : value;
+}
+
+/**
+ * Strips the "s" off the end of a string.
+ * @param {string} string The string to "singularize".
+ * @returns The modified string.
+ * @export
+ */
+export function singular(string) {
+  return string.replace(/s$/, '');
+}
+
+/**
+ * Adds an "s" to the end of a string, if it doesn't already exist.
+ * @param {string} string The string to "singularize".
+ * @returns The modified string.
+ * @export
+ */
+export function plural(string) {
+  return string.replace(/s?$/, 's');
 }

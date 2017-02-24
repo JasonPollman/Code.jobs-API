@@ -1,9 +1,7 @@
 /**
- * A "catch all" route that sends back 401 - Unauthorized.
+ * A "catch all" route that sends back 404.
  * @export
  */
-
-import unauthorized from './unauthorized';
 
 export default {
   // The method this route applies to.
@@ -13,5 +11,7 @@ export default {
   // A string used to match routes (i.e app[method]([match]))
   match: '*',
   // The app[method] callback handler
-  handler: unauthorized.handler,
+  handler: (req, res) => {
+    res.status(404).respond();
+  },
 };

@@ -5,7 +5,7 @@
  */
 
 import _ from 'lodash';
-import JSONResponse from '../lib/JSONResponse';
+import JSONResponse from '../lib/response';
 
 /**
  * Adds a .respond() method to the response object so all responses will be in the same format.

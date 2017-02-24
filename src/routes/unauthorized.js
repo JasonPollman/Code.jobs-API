@@ -9,6 +9,6 @@ export default {
   match: '/unauthorized',
   // The app[method] callback handler
   handler: (req, res) => {
-    res.status(401).respond({ message: 'Unauthorized' });
+    res.status(401).respond();
   },
 };

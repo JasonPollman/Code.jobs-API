@@ -10,19 +10,19 @@ import https from 'https';
 import express from 'express';
 import config from './config';
 import log from './lib/logger';
-import { sortRoutes, validateRoute, has } from './lib/utils';
-
-import { init as initializeDatabase } from './lib/sequelize';
-import { init as initializeRedis } from './lib/redis';
-
+import redis from './lib/redis';
+import models from './database/models';
 import middlewares from './middlewares';
 import routes from './routes';
-import models from './models';
+import './database/associations';
+
+import { validateAppIdentifier } from './routewares';
+import { sortRoutes, validateRoute, has } from './lib/utils';
 
 process.title = config.PROCESS_TITLES.WORKER;
 
-const { DISABLED_MIDDLEWARES, DISABLED_ROUTES, NODE_ENV, WORKER_NUM } = config;
-const { HTTPS_OPTIONS, PORT } = config.SERVER;
+const { NODE_ENV, WORKER_NUM } = config;
+const { HTTPS_OPTIONS, PORT, DISABLED_MIDDLEWARES, DISABLED_ROUTES } = config.SERVER;
 
 /**
  * Default route properties which are added to all routes if they are missing.
@@ -30,6 +30,7 @@ const { HTTPS_OPTIONS, PORT } = config.SERVER;
  */
 const DEFAULT_ROUTE_PROPS = {
   method: 'all',
+  requiresValidAppId: true,
   permission: 'none',
   specificity: 0,
 };
@@ -46,8 +47,27 @@ const server = _.isObject(HTTPS_OPTIONS)
  * @returns {Array|object}
  */
 function digestRoute(route, category) {
-  if (Array.isArray(route)) return route.map(digestRoute);
+  if (Array.isArray(route)) return route.map(rte => digestRoute(rte, category));
   return validateRoute({ ...DEFAULT_ROUTE_PROPS, ...route, category }, category);
+}
+
+/**
+ * Wraps the given route callback with a try/catch and send error responses accordingly.
+ * @param {function} callback The route callback to wrap
+ * @returns {function} The wrapped route callback
+ */
+function middlewareWrapper(callback) {
+  return async (req, res, ...rest) => {
+    try {
+      const context = { app, server, models };
+      return await callback.call(context, req, res, ...rest);
+    } catch (e) {
+      // If the error didn't define a status, make it 500, and
+      // in prod, redirect to /error, otherwise respond with the error contents.
+      if (!has(e, 'status')) e.status = 500;
+      return NODE_ENV !== 'production' ? res.status(500).respond(e) : res.redirect('/error');
+    }
+  };
 }
 
 /**
@@ -59,25 +79,7 @@ function digestRoute(route, category) {
 function initializeMiddleware(middleware, name) {
   return DISABLED_MIDDLEWARES[name]
     ? log.debug('Skipping middleware "%s" (disabled by config)', name)
-    : log.debug('Middleware "%s" initialized', name) || app.use(middleware);
-}
-
-/**
- * Wraps the given route callback with a try/catch and send error responses accordingly.
- * @param {function} callback The route callback to wrap
- * @returns {function} The wrapped route callback
- */
-function createWrappedRouteCallback(callback) {
-  return async (req, res, ...rest) => {
-    try {
-      return await callback.call(app, req, res, ...rest);
-    } catch (e) {
-      // If the error didn't define a status, make it 500, and
-      // in prod, redirect to /error, otherwise respond with the error contents.
-      if (!has(e, 'status')) e.status = 500;
-      return NODE_ENV !== 'production' ? res.status(500).respond(e) : res.redirect('/error');
-    }
-  };
+    : log.debug('Middleware "%s" initialized', name) || app.use(middlewareWrapper(middleware));
 }
 
 /**
@@ -87,10 +89,13 @@ function createWrappedRouteCallback(callback) {
  * @returns {undefined}
  */
 function initializeRoute(route) {
-  const { category, method, match, handler } = route;
+  const { category, method, match, handler, requiresValidAppId } = route;
+  const callback = middlewareWrapper(handler);
+  const validateAppId = middlewareWrapper(validateAppIdentifier(requiresValidAppId));
+
   return DISABLED_ROUTES[category]
     ? log.warn('Skipping all "%s" routes (disabled by config)', category)
-    : app[method.toLowerCase()](match, createWrappedRouteCallback(handler));
+    : app[method.toLowerCase()](match, validateAppId, callback);
 }
 
 /**
@@ -121,36 +126,19 @@ function initializeServer() {
  * @returns {Promise} Resolves when all worker initialization tasks are complete.
  */
 async function start() {
-  // Startup the database and redis
-  await Promise.all([
-    initializeDatabase(),
-    initializeRedis(),
-  ]);
-
-  // Setup CRUD routes for each model
-  // Iterate over each model, and setup routes if they're included.
-  const databaseRoutes = [];
-
-  _.each(models, (model) => {
-    if (!_.isObject(model.definition.routes)) return;
-    const category = _.camelCase(`Model ${model.definition.name}`);
-    databaseRoutes.push(digestRoute(model.definition.routes, category));
-  });
+  redis.init();
 
   // Setup express middlewares
   _.each(middlewares, initializeMiddleware);
 
   // Sort the routes by specificity then add them to the express app
-  const formattedRoutes = _.flatten(_.map(routes, digestRoute)
-    .concat(databaseRoutes))
-    .sort(sortRoutes);
+  const processedRoutes = _.flatten(_.map(routes, digestRoute)).sort(sortRoutes);
 
-  if (WORKER_NUM === 1) log.debug('Routes List:\n', formattedRoutes);
-  formattedRoutes.forEach(initializeRoute);
+  if (WORKER_NUM === 1) log.debug('Routes List:\n', processedRoutes);
+  processedRoutes.forEach(initializeRoute);
 
   // Kick off the server
   await initializeServer();
-
   log.info('Server now listening on port %s', PORT);
 }
 

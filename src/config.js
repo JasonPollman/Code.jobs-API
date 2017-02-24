@@ -11,7 +11,7 @@ import JSON5 from 'json5';
 import assert from 'assert';
 import { cpus } from 'os';
 import cluster from 'cluster';
-import { deepFreeze, walkObject, finiteGreaterThanZero } from './lib/utils';
+import { deepFreeze, walkObject, finiteGreaterThanZero, getBoolOrOriginalValue } from './lib/utils';
 
 const {
   CONFIG_PATH = path.join(__dirname, '..', 'config.json'),
@@ -30,12 +30,22 @@ const constants = {
     MASTER: 'Code Jobs API Master',
     WORKER: 'Code Jobs API Worker',
   },
+  CACHE_PREFIXES: {
+    REQUESTS_PER_MINUTE: 'SERVER_IP_REQUESTS_PER_MINUTE',
+    ROUTE_CACHE: 'ROUTE_CACHE',
+  },
 };
 
 // Read in the config.json file and extend the default (*) env settings
 // with the current env settings
-const baseConfig = JSON5.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
-const config = _.merge({}, baseConfig['*'], baseConfig[NODE_ENV]);
+const jsonConfig = JSON5.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+
+// Get the extended configuration
+let environmentConfig;
+environmentConfig = jsonConfig[NODE_ENV];
+environmentConfig = _.merge(environmentConfig.EXTENDS || {}, jsonConfig[NODE_ENV]);
+
+const config = _.merge({}, jsonConfig['*'], environmentConfig);
 
 /**
  * A set of validations to pass to assert.equal().
@@ -43,6 +53,11 @@ const config = _.merge({}, baseConfig['*'], baseConfig[NODE_ENV]);
  * @type {Array<Array>}
  */
 const validations = conf => [
+  [
+    'boolean',
+    typeof conf.FIRST_RUN,
+    'Configuration setting FIRST_RUN must be a boolean!',
+  ],
   [
     'number',
     typeof conf.SERVER.PORT,
@@ -54,9 +69,24 @@ const validations = conf => [
     'Configuration setting SERVER.HTTPS_CONFIG must be either an object (or null)!',
   ],
   [
+    'number',
+    typeof conf.SERVER.REQUESTS_PER_MINUTE_LIMIT,
+    'Configuration setting SERVER.REQUESTS_PER_MINUTE_LIMIT must be a number!',
+  ],
+  [
     'object',
     typeof conf.SERVER.EXTRA_HEADERS,
     'Configuration setting SERVER.EXTRA_HEADERS must be either an object (or null)!',
+  ],
+  [
+    'object',
+    typeof conf.SERVER.DISABLE_HEADERS,
+    'Configuration setting SERVER.DISABLE_HEADERS must be either an object (or null)!',
+  ],
+  [
+    'boolean',
+    typeof conf.SERVER.APP_ID_VALIDATION_ENABLED,
+    'Configuration setting SERVER.APP_ID_VALIDATION_ENABLED must be a boolean!',
   ],
   [
     'number',
@@ -129,19 +159,26 @@ const validations = conf => [
     'Configuration setting DATABASE.SCHEMA must be a string!',
   ],
   [
+    'number',
+    typeof conf.DATABASE.MAXIMUM_RECORD_COUNT,
+    'Configuration setting DATABASE.MAXIMUM_RECORD_COUNT must be a number!',
+  ],
+  [
     true,
     _.isPlainObject(conf.DATABASE.POOL_CONFIG),
     'Configuration setting DATABASE.POOL_CONFIG must be a plain object!',
   ],
   [
     true,
-    _.isPlainObject(conf.DISABLED_MIDDLEWARES) && _.every(conf.DISABLED_MIDDLEWARES, _.isBoolean),
-    'Configuration setting DISABLED_MIDDLEWARES must be a plain object of booleans!',
+    _.isPlainObject(conf.SERVER.DISABLED_MIDDLEWARES)
+      && _.every(conf.SERVER.DISABLED_MIDDLEWARES, _.isBoolean),
+    'Configuration setting SERVER.DISABLED_MIDDLEWARES must be a plain object of booleans!',
   ],
   [
     true,
-    _.isPlainObject(conf.DISABLED_ROUTES) && _.every(conf.DISABLED_ROUTES, _.isBoolean),
-    'Configuration setting DISABLED_ROUTES must be a plain object of booleans!',
+    _.isPlainObject(conf.SERVER.DISABLED_ROUTES)
+      && _.every(conf.SERVER.DISABLED_ROUTES, _.isBoolean),
+    'Configuration setting SERVER.DISABLED_ROUTES must be a plain object of booleans!',
   ],
 ];
 
@@ -151,6 +188,7 @@ const validations = conf => [
  * @type {object<function>}
  */
 const coercions = {
+  SERVER_DISABLE_HEADERS: value => value || {},
   CLUSTER_WORKER_COUNT: n => (n === 0 ? cpus().length - 1 : n),
 
   // Clamp the following in the range: [0, Number.Max_VALUE]
@@ -164,14 +202,12 @@ const coerce = (key, value) => (coercions[key] ? coercions[key](value) : value);
 // Sub-settings are joined with an underscore here, so the environment variable SERVER_PORT
 // would be equivalent to SERVER.PORT.
 walkObject(config, (value, key, parent, paths) => {
-  if (!paths.length) return value;
-
-  const property = `${paths.join('_')}_${key}`;
+  const property = paths.length ? `${paths.join('_')}_${key}` : key;
   const override = process.env[property];
   const which = _.isUndefined(override) ? value : override;
   const numeric = _.isString(which) ? Number(which) : NaN;
 
-  return coerce(property, isNaN(numeric) ? which : numeric);
+  return coerce(property, getBoolOrOriginalValue(isNaN(numeric) ? which : numeric));
 }, true);
 
 // Validate all config values

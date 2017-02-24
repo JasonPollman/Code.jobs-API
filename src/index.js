@@ -8,9 +8,23 @@ import path from 'path';
 import cluster from 'cluster';
 import config from './config';
 import log from './lib/logger';
-import { init as initializeDatabase } from './lib/sequelize';
+import setup from './lib/setup';
+import sequelize from './database';
+import models from './database/models';
+import './database/associations';
 
 process.title = config.PROCESS_TITLES.MASTER;
+
+cluster.setupMaster({
+  exec: path.join(__dirname, 'worker'),
+  stdio: 'inherit',
+});
+
+const {
+  FIRST_RUN,
+  NODE_ENV,
+  IS_WORKER,
+} = config;
 
 const {
   WORKER_COUNT,
@@ -19,10 +33,9 @@ const {
   WORKER_RESTARTS_MAX,
 } = config.CLUSTER;
 
-cluster.setupMaster({
-  exec: path.join(__dirname, 'worker'),
-  stdio: 'inherit',
-});
+const {
+  SYNC,
+} = config.DATABASE;
 
 /**
  * @returns {number} The number of milliseconds the master process has been running.
@@ -93,13 +106,47 @@ function forkWorkers() {
 }
 
 /**
+ * Syncs database tables.
+ * @param {boolean=} [force=false] If true, tables will be dropped and recreated.
+ * @returns {Promise} Resolves when database syncing is complete.
+ * @export
+ */
+export function sync(force = false) {
+  log.debug('Syncing database tables (enabled by config, force=%s)', force);
+  return sequelize.sync({ force });
+}
+
+/**
+ * Syncs the database tables if config.DATABASE.SYNC is truthy.
+ * @returns {Promise<Sequelize>} Resolves with the Sequelize connection instance.
+ * @export
+ */
+export async function initializeDatabase() {
+  // Sync database tables (make sure this is only done by master process!)
+  if (SYNC && IS_WORKER === false) await sync(SYNC === 'force');
+  log.debug('Sequelize initialized');
+}
+
+/**
  * Starts the cluster.
  * @returns {undefined}
  * @export
  */
 export async function start() {
   log.debug('Initialized with configuration', config);
+  const firstrun = FIRST_RUN && NODE_ENV !== 'production';
+
+  // Pre-sync setup
+  if (firstrun) await setup.presync();
+
+  // Kick of database syncing and model creation
   await initializeDatabase();
+  log.debug('Registered models:', Object.keys(models));
+
+  // Post-sync setup
+  if (firstrun) await setup.postsync(models);
+
+  // Fork all worker processes
   forkWorkers();
 }
 

@@ -5,6 +5,7 @@
  */
 
 import _ from 'lodash';
+import http from 'http';
 import config from '../config';
 import { walkObject, IMMUTABLE_VISIBLE } from './utils';
 
@@ -23,15 +24,6 @@ const DEFAULT_RESPONSE = {
   success: false,
   message: '',
   payload: null,
-};
-
-/**
- * Some default message values.
- * @type {object<string>}
- */
-const DEFAULT_MESSAGES = {
-  RESOURCE_NOT_FOUND: 'Resource Not Found',
-  OKAY: 'Okay',
 };
 
 /**
@@ -90,15 +82,11 @@ export default class JSONResponse {
 
     // Add default response values
     const properties = Object.assign({ time: Date.now() }, DEFAULT_RESPONSE, response);
-    const { message, payload, success } = properties;
-    if (!payload) properties.payload = null;
+    const { message, payload, status } = properties;
 
-    // Setup the default message in some scenarios
-    if (!message && payload === null) {
-      properties.message = DEFAULT_MESSAGES.RESOURCE_NOT_FOUND;
-    } else if (!message && success === true) {
-      properties.message = DEFAULT_MESSAGES.OKAY;
-    }
+    // Use default HTTP status code, if no message
+    if (!payload) properties.payload = null;
+    if (!message) properties.message = http.STATUS_CODES[status];
 
     // Apply all properties to this response object and immute them.
     _.each(properties, (value, key) =>
