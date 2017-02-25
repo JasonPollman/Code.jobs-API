@@ -21,8 +21,9 @@ import { sortRoutes, validateRoute, has } from './lib/utils';
 
 process.title = config.PROCESS_TITLES.WORKER;
 
-const { NODE_ENV, WORKER_NUM } = config;
+const { NODE_ENV, WORKER_NUM, APPLICATION_NAME } = config;
 const { HTTPS_OPTIONS, PORT, DISABLED_MIDDLEWARES, DISABLED_ROUTES } = config.SERVER;
+const httpsEnabled = _.isObject(HTTPS_OPTIONS);
 
 /**
  * Default route properties which are added to all routes if they are missing.
@@ -36,7 +37,7 @@ const DEFAULT_ROUTE_PROPS = {
 };
 
 const app = express();
-const server = _.isObject(HTTPS_OPTIONS)
+const server = httpsEnabled
   ? https.createServer(HTTPS_OPTIONS, app)
   : http.createServer(app);
 
@@ -126,6 +127,7 @@ function initializeServer() {
  * @returns {Promise} Resolves when all worker initialization tasks are complete.
  */
 async function start() {
+  log.debug('%s Worker Bootstrapping', APPLICATION_NAME);
   redis.init();
 
   // Setup express middlewares
@@ -139,7 +141,10 @@ async function start() {
 
   // Kick off the server
   await initializeServer();
-  log.info('Server now listening on port %s', PORT);
+
+  const { address, family, port } = server.address();
+  const connectionString = `http${httpsEnabled ? 's' : ''}://${family === 'IPv6' ? `[${address}]` : address}:${port}`;
+  log.debug('Server initialized and listening on %s', connectionString);
 }
 
 // Start the worker server

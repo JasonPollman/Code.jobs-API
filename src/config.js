@@ -13,28 +13,12 @@ import { cpus } from 'os';
 import cluster from 'cluster';
 import { deepFreeze, walkObject, finiteGreaterThanZero, getBoolOrOriginalValue } from './lib/utils';
 
+const LOG_LEVELS = ['trace', 'debug', 'info', 'error', 'fatal'];
+
 const {
   CONFIG_PATH = path.join(__dirname, '..', 'config.json'),
   NODE_ENV = 'production',
 } = process.env;
-
-/**
- * A set of options that cannot be overridden.
- * These are merged with the configuration below.
- * @type {object}
- */
-const constants = {
-  NODE_ENV,
-  IS_WORKER: cluster.isWorker,
-  PROCESS_TITLES: {
-    MASTER: 'Code Jobs API Master',
-    WORKER: 'Code Jobs API Worker',
-  },
-  CACHE_PREFIXES: {
-    REQUESTS_PER_MINUTE: 'SERVER_IP_REQUESTS_PER_MINUTE',
-    ROUTE_CACHE: 'ROUTE_CACHE',
-  },
-};
 
 // Read in the config.json file and extend the default (*) env settings
 // with the current env settings
@@ -53,11 +37,18 @@ const config = _.merge({}, jsonConfig['*'], environmentConfig);
  * @type {Array<Array>}
  */
 const validations = conf => [
+  // General validations
+  [
+    'string',
+    typeof conf.APPLICATION_NAME,
+    'Configuration setting APPLICATION_NAME must be a string!',
+  ],
   [
     'boolean',
     typeof conf.FIRST_RUN,
     'Configuration setting FIRST_RUN must be a boolean!',
   ],
+  // Server validations
   [
     'number',
     typeof conf.SERVER.PORT,
@@ -89,6 +80,19 @@ const validations = conf => [
     'Configuration setting SERVER.APP_ID_VALIDATION_ENABLED must be a boolean!',
   ],
   [
+    true,
+    _.isPlainObject(conf.SERVER.DISABLED_MIDDLEWARES)
+      && _.every(conf.SERVER.DISABLED_MIDDLEWARES, _.isBoolean),
+    'Configuration setting SERVER.DISABLED_MIDDLEWARES must be a plain object of booleans!',
+  ],
+  [
+    true,
+    _.isPlainObject(conf.SERVER.DISABLED_ROUTES)
+      && _.every(conf.SERVER.DISABLED_ROUTES, _.isBoolean),
+    'Configuration setting SERVER.DISABLED_ROUTES must be a plain object of booleans!',
+  ],
+  // Cluster validations
+  [
     'number',
     typeof conf.CLUSTER.WORKER_COUNT,
     'Configuration setting CLUSTER.WORKER_COUNT must be a number!',
@@ -109,6 +113,17 @@ const validations = conf => [
     'Configuration setting CLUSTER.WORKER_RESTART_DELAY must be a number!',
   ],
   [
+    'number',
+    typeof conf.CLUSTER.WORKER_MIN_COUNT_PERCENTAGE,
+    'Configuration setting CLUSTER.WORKER_MIN_COUNT_PERCENTAGE must be a number!',
+  ],
+  [
+    'number',
+    typeof conf.CLUSTER.WORKER_DELAY_BETWEEN_SPAWNS,
+    'Configuration setting CLUSTER.WORKER_DELAY_BETWEEN_SPAWNS must be a number!',
+  ],
+  // Redis validations
+  [
     'boolean',
     typeof conf.REDIS.ENABLED,
     'Configuration setting REDIS.ENABLED must be a boolean!',
@@ -128,11 +143,7 @@ const validations = conf => [
     typeof conf.DATABASE.SYNC === 'boolean' || conf.DATABASE.SYNC === 'force',
     'Configuration setting DATABASE.SYNC must be a boolean or the string "force"!',
   ],
-  [
-    'string',
-    typeof conf.DATABASE.HOST,
-    'Configuration setting DATABASE.HOST must be a string!',
-  ],
+  // Database validations
   [
     'string',
     typeof conf.DATABASE.HOST,
@@ -168,17 +179,31 @@ const validations = conf => [
     _.isPlainObject(conf.DATABASE.POOL_CONFIG),
     'Configuration setting DATABASE.POOL_CONFIG must be a plain object!',
   ],
+  // Slack logging
   [
-    true,
-    _.isPlainObject(conf.SERVER.DISABLED_MIDDLEWARES)
-      && _.every(conf.SERVER.DISABLED_MIDDLEWARES, _.isBoolean),
-    'Configuration setting SERVER.DISABLED_MIDDLEWARES must be a plain object of booleans!',
+    'boolean',
+    typeof conf.SLACK_LOGGING.ENABLED,
+    'Configuration setting SLACK_LOGGING.ENABLED must be a boolean!',
+  ],
+  [
+    'string',
+    typeof conf.SLACK_LOGGING.WEBHOOK_URL,
+    'Configuration setting SLACK_LOGGING.WEBHOOK_URL must be a string!',
+  ],
+  [
+    'string',
+    typeof conf.SLACK_LOGGING.CHANNEL,
+    'Configuration setting SLACK_LOGGING.CHANNEL must be a string!',
+  ],
+  [
+    'string',
+    typeof conf.SLACK_LOGGING.USERNAME,
+    'Configuration setting SLACK_LOGGING.USERNAME must be a string!',
   ],
   [
     true,
-    _.isPlainObject(conf.SERVER.DISABLED_ROUTES)
-      && _.every(conf.SERVER.DISABLED_ROUTES, _.isBoolean),
-    'Configuration setting SERVER.DISABLED_ROUTES must be a plain object of booleans!',
+    _.includes(LOG_LEVELS, conf.SLACK_LOGGING.LEVEL),
+    `Configuration setting SLACK_LOGGING.LEVEL must be on of [${LOG_LEVELS.join('|')}]!`,
   ],
 ];
 
@@ -213,7 +238,36 @@ walkObject(config, (value, key, parent, paths) => {
 // Validate all config values
 validations(config).forEach(validation => assert.equal(...validation));
 
-// Merge in derived configuration values
-export default deepFreeze(Object.assign(config, constants, {
-  WORKER_NUM: cluster.isMaster ? 0 : (cluster.worker.id % config.CLUSTER.WORKER_COUNT) + 1,
+/**
+ * A set of options that cannot be overridden.
+ * These are merged with the configuration below.
+ * @type {object}
+ */
+const constants = {
+  NODE_ENV,
+  IS_WORKER: cluster.isWorker,
+  IS_MASTER: cluster.isMaster,
+  PROCESS_TITLES: {
+    MASTER: `${config.APPLICATION_NAME} Master`,
+    WORKER: `${config.APPLICATION_NAME} Worker`,
+  },
+  CACHE_PREFIXES: {
+    REQUESTS_PER_MINUTE: 'SERVER_IP_REQUESTS_PER_MINUTE',
+    ROUTE_CACHE: 'ROUTE_CACHE',
+  },
+};
+
+const {
+  WORKER_COUNT,
+  WORKER_MIN_COUNT_PERCENTAGE,
+} = config.CLUSTER;
+
+// Merge in derived other configuration values
+export default deepFreeze(_.merge(config, constants, {
+  WORKER_NUM: cluster.isWorker
+    ? (cluster.worker.id % config.CLUSTER.WORKER_COUNT) + 1
+    : 0,
+  CLUSTER: {
+    WORKER_MIN_ALLOWED: Math.max(1, Math.ceil(WORKER_MIN_COUNT_PERCENTAGE * WORKER_COUNT)),
+  },
 }));

@@ -8,6 +8,7 @@ import config from '../config';
 import { hrtimeToMilliseconds } from '../lib/utils';
 
 const { EXTRA_HEADERS, DISABLE_HEADERS } = config.SERVER;
+const { APPLICATION_NAME } = config;
 
 /**
  * A callback for response.once('transmitting') that adds the "X-Response-Time" header.
@@ -51,7 +52,7 @@ export default function headers(request, response, next) {
 
   // Add X-Powered-By header
   if (!DISABLE_HEADERS['X-Powered-By']) {
-    response.header('X-Powered-By', 'Code Jobs API');
+    response.header('X-Powered-By', APPLICATION_NAME);
   }
 
   // Set headers on per-environment basis

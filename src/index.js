@@ -4,6 +4,7 @@
  * @file
  */
 
+import _ from 'lodash';
 import path from 'path';
 import cluster from 'cluster';
 import config from './config';
@@ -23,14 +24,16 @@ cluster.setupMaster({
 const {
   FIRST_RUN,
   NODE_ENV,
-  IS_WORKER,
+  APPLICATION_NAME,
 } = config;
 
 const {
   WORKER_COUNT,
+  WORKER_DELAY_BETWEEN_SPAWNS,
   WORKER_RESTART_DELAY,
   WORKER_RESTARTS_RESET_AFTER,
   WORKER_RESTARTS_MAX,
+  WORKER_MIN_ALLOWED,
 } = config.CLUSTER;
 
 const {
@@ -71,12 +74,14 @@ const restarts = new Map();
  * @param {ChildProcess} worker The child process of the worker that's died.
  * @returns {undefined}
  */
-function onWorkerExit(worker) {
+function onWorkerExit(worker, code) {
+  const num = getWorkerNumber(worker);
   // Process hasn't been alive long enough, just let the error be thrown.
-  if (uptime() <= WORKER_RESTART_DELAY) return;
+  if (uptime() <= WORKER_RESTART_DELAY) {
+    throw new Error(`Worker number ${num} died (code ${code})`);
+  }
 
   // Get the worker number and setup the restart reference object.
-  const num = getWorkerNumber(worker);
   const ref = restarts.get(num) || { forks: 0, timeout: null };
   restarts.set(num, ref);
 
@@ -89,20 +94,58 @@ function onWorkerExit(worker) {
   // Check to see if this worker has exceeded the maximum number of restarts,
   // if so, return, otherwise fork a replacement worker (which will have the
   // same worker number as the now dead one).
-  if (WORKER_RESTARTS_MAX > 0 && ref.forks >= WORKER_RESTARTS_MAX) return;
-  log.warn('Worker number %s died, forking replacement (%s total forks)', num, ref.forks);
+  if (WORKER_RESTARTS_MAX > 0 && ref.forks >= WORKER_RESTARTS_MAX) {
+    log.error('Worker %s has exhausted it\'s spawn allocations (%s). It will not be reforked.', num, ref.forks + 1);
+    const alive = Object.keys(cluster.workers).length;
+
+    if (alive === 0) {
+      // No workers remaining
+      throw new Error('All workers have exhausted their spawn allocations. No workers remaining... exiting');
+    }
+
+    if (alive < WORKER_MIN_ALLOWED) {
+      // Fallen below the worker minimum allowed threshold
+      throw new Error(`Too few workers (${alive} alive, ${WORKER_MIN_ALLOWED} needed)... exiting`);
+    }
+
+    return;
+  }
+
+  log.warn('Worker number %s died, forking replacement (%s total forks)', num, ref.forks += 1);
   cluster.fork();
 }
-
-cluster.on('exit', onWorkerExit);
 
 /**
  * Forks all worker processes
  * @returns {undefined}
  */
 function forkWorkers() {
-  log.debug('Master is forking %s workers', WORKER_COUNT);
-  for (let i = 0; i < WORKER_COUNT; i++) cluster.fork();
+  log.debug('Forking %s workers', WORKER_COUNT);
+  for (let i = 0; i < WORKER_COUNT; i++) {
+    setTimeout(() => cluster.fork(), i * WORKER_DELAY_BETWEEN_SPAWNS);
+  }
+}
+
+/**
+ * Bootstraps the cluster workers.
+ * @returns {undefined}
+ */
+async function bootstrapCluster() {
+  let online = 0;
+
+  // Called when a worker is online
+  const onlineCallback = () => {
+    if (++online === WORKER_COUNT) {
+      cluster.removeListener('online', onlineCallback).emit('bootstrapped');
+    }
+  };
+
+  cluster.on('online', onlineCallback);
+  const bootstrapPromise = new Promise(resolve => cluster.on('bootstrapped', resolve));
+  forkWorkers();
+
+  await bootstrapPromise;
+  log.info('All (%s) workers bootstrapped successfully...', WORKER_COUNT);
 }
 
 /**
@@ -123,7 +166,7 @@ export function sync(force = false) {
  */
 export async function initializeDatabase() {
   // Sync database tables (make sure this is only done by master process!)
-  if (SYNC && IS_WORKER === false) await sync(SYNC === 'force');
+  if (SYNC) await sync(SYNC === 'force');
   log.debug('Sequelize initialized');
 }
 
@@ -133,7 +176,9 @@ export async function initializeDatabase() {
  * @export
  */
 export async function start() {
+  log.info('%s Master Bootstrapping', APPLICATION_NAME);
   log.debug('Initialized with configuration', config);
+
   const firstrun = FIRST_RUN && NODE_ENV !== 'production';
 
   // Pre-sync setup
@@ -147,7 +192,8 @@ export async function start() {
   if (firstrun) await setup.postsync(models);
 
   // Fork all worker processes
-  forkWorkers();
+  await bootstrapCluster();
 }
 
+cluster.on('exit', onWorkerExit);
 export default { start };

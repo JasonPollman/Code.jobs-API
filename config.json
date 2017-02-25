@@ -1,7 +1,7 @@
 {
   // CODE.JOBS API SERVER CONFIGURATION
   // -----------------------------------------------------------------------------------------------
-  // This JSON5 file contains all settings for the Code Jobs API Server.
+  // This JSON5 file contains all settings for the API Server.
   // The "*" key contains base settings for all environments.
   // You can override a base setting by specifying the same key under another environment namespace.
   //
@@ -11,6 +11,10 @@
   // -----------------------------------------------------------------------------------------------
 
   "*": {
+    // The application name
+    "APPLICATION_NAME": "Code Jobs API",
+    // A shorter version of application name
+    "COMPANY_NAME": "Code Jobs",
     // If true, "first run" tasks will be run.
     // This includes setting up database users, etc.
     // This will only run in a *non* production environment, otherwise, it will be ignored.
@@ -66,16 +70,22 @@
       // The number of worker processes to fork.
       // IF <= 0, the number of available CPU cores - 1 will be used.
       "WORKER_COUNT": 0,
+      // The PERCENTAGE of workers that must remain alive. Otherwise, the master process will
+      // exit with an error.
+      "WORKER_MIN_COUNT_PERCENTAGE": 0.8,
       // The number of restarts each worker is allowed to have before a fatal error is thrown.
       // This is *restarts* so, 2 restarts + 1 initial start is 3 starts total.
       "WORKER_RESTARTS_MAX": 2,
       // Sets each worker's restart count to zero after the provided number of milliseconds.
       // If <= 0 or falsy, the worker's restart count will never reset.
-      "WORKER_RESTARTS_RESET_AFTER": 5000,
+      "WORKER_RESTARTS_RESET_AFTER": 10000,
       // The number of milliseconds to delay before allowing *any* restarts.
       // This is useful in the event the worker file has a syntax error and the master will
       // immediately refork workers until "WORKER_RESTARTS_ALLOWED" is exceeded.
-      "WORKER_RESTART_DELAY": 5000
+      "WORKER_RESTART_DELAY": 2000,
+      // The amount of time in ms to delay between spawing worker processes.
+      // A small delay here is necessary, so everything isn't forked all at once.
+      "WORKER_DELAY_BETWEEN_SPAWNS": 250
     },
     "REDIS": {
       // Set to false to disable redis caching.
@@ -122,6 +132,18 @@
       // If true, the response body will also be stored in the response log.
       // This can get expensive, so it is disabled by default.
       "CAPTURE_RESPONSE_BODY": false
+    },
+    "SLACK_LOGGING": {
+      // If true, logs will be sent to slack
+      "ENABLED": true,
+      // The Slack integration webhook URL
+      "WEBHOOK_URL": "https://hooks.slack.com/services/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",
+      // The channel name
+      "CHANNEL": "#api",
+      // THe name of the user who posts the log
+      "USERNAME": "API Server Log",
+      // The minimum log level to log
+      "LEVEL": "error"
     }
   },
 
@@ -134,9 +156,17 @@
         "X-Environment": "development"
       }
     },
+    "CLUSTER": {
+      "WORKER_MIN_COUNT_PERCENTAGE": 0.5,
+      "WORKER_COUNT": 3
+    },
     "DATABASE": {
       "USER": "root",
       "PASS": "Eastwood9518*"
+    },
+    "SLACK_LOGGING": {
+      "ENABLED": false,
+      "LEVEL": "error"
     }
   },
 
@@ -160,13 +190,17 @@
         "X-Response-Time": true,
         "X-Request-Limit": true,
         "X-Requests-Remaining": true
+      },
+      "DISABLED_ROUTES": {
+        "ping": true
       }
     },
     "DATABASE": {
       "SYNC": false
     },
-    "DISABLED_ROUTES": {
-      "ping": true
+    "SLACK_LOGGING": {
+      "ENABLED": true,
+      "LEVEL": "error"
     }
   }
 }
