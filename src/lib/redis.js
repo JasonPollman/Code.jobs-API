@@ -63,7 +63,7 @@ export default {
     log.debug('Redis GET "%s" => %s', key, result ? `\n${JSON.stringify(result, null, 2)}` : '(cache miss)');
     return result;
   },
-  // Get an object and return a promise
+  // Delete the list of keys provided
   async delAsync(...keys) {
     log.debug('Redis DEL "%s"', keys.join(', '));
     return exports.default.client.delAsync(keys);

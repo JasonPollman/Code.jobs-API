@@ -10,7 +10,8 @@ import { Application } from '../database/models';
 const { APP_ID_VALIDATION_ENABLED } = config.SERVER;
 
 /**
- * Limits the number of requests per minute per ip.
+ * Checks that the "X-Application-Identifier" header is present and valid.
+ * If not, the user is bounced to: '/unauthorized'.
  * @param {object} request The HTTP request object.
  * @param {object} response The HTTP response object.
  * @param {function} next Calls the next handler on the request stack.

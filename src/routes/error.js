@@ -11,6 +11,6 @@ export default {
   match: '/error',
   // The app[method] callback handler
   handler: (req, res) => {
-    res.status(500).respond({ message: 'Internal Server Error' });
+    res.status(500).respond();
   },
 };
