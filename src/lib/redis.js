@@ -26,7 +26,7 @@ function setupClientType(type) {
   if (!has(clients, type)) throw new TypeError(`Invalid redis client type ${type}`);
 
   log.debug('Creating redis client "%s"', type);
-  clients[type] = ENABLED ? redis.createClient(PORT, HOST) : _.mapValues(methods, _.noop);
+  clients[type] = ENABLED ? redis.createClient(PORT, HOST) : _.mapValues(methods, Promise.resolve);
   return clients[type];
 }
 
@@ -59,12 +59,13 @@ export default {
   },
   // Get an object and return a promise
   async getAsync(key) {
-    log.debug('Redis GET "%s"', key);
-    return JSON.parse(await exports.default.client.getAsync(key));
+    const result = await JSON.parse(await exports.default.client.getAsync(key));
+    log.debug('Redis GET "%s" => %s', key, result ? `\n${JSON.stringify(result, null, 2)}` : '(cache miss)');
+    return result;
   },
   // Get an object and return a promise
-  async delAsync(key) {
-    log.debug('Redis DEL "%s"', key);
-    return exports.default.client.delAsync(key);
+  async delAsync(...keys) {
+    log.debug('Redis DEL "%s"', keys.join(', '));
+    return exports.default.client.delAsync(keys);
   },
 };

@@ -65,7 +65,12 @@ function middlewareWrapper(callback) {
     } catch (e) {
       // If the error didn't define a status, make it 500, and
       // in prod, redirect to /error, otherwise respond with the error contents.
-      if (!has(e, 'status')) e.status = 500;
+      if (/^Sequelize/.test(e.name)) {
+        e.status = 400;
+      } else if (!has(e, 'status')) {
+        e.status = 500;
+      }
+
       return NODE_ENV !== 'production' ? res.status(500).respond(e) : res.redirect('/error');
     }
   };

@@ -29,6 +29,6 @@ export default sequelize.define('application', {
   enabled: {
     type: BOOLEAN,
     allowNull: false,
-    default: true,
+    defaultValue: true,
   },
 });

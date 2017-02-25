@@ -3,7 +3,7 @@
  * @file
  */
 
-import cluster from 'cluster';
+import _ from 'lodash';
 import { createLogger } from 'bunyan';
 import BunyanSlack from 'bunyan-slack';
 import config from '../config';
@@ -18,13 +18,8 @@ const {
 
 const {
   IS_MASTER,
+  IS_WORKER,
 } = config;
-
-/**
- * True if the current process is a worker, false if it's the master.
- * @type {boolean}
- */
-const isWorker = cluster.isWorker;
 
 /**
  * A mapping of log levels to hex colors.
@@ -47,13 +42,14 @@ const colors = {
  * @export
  */
 export function slackMessageFormatter(message, lvl) {
-  const { hostname, name, msg, pid } = message;
+  const { hostname, name, msg, pid, err } = message;
   const level = lvl.toUpperCase();
   const color = colors[level] || colors.INFO;
+  const text = _.isObject(err) && err.stack ? err.stack : msg;
 
   return {
     text: `*${hostname}*\n_${name}_ \`${pid}\``,
-    attachments: [{ title: level, text: msg, color }],
+    attachments: [{ title: level, text, color }],
   };
 }
 
@@ -83,6 +79,6 @@ if (ENABLED && IS_MASTER) {
 }
 
 export default createLogger({
-  name: isWorker ? `Worker ${config.WORKER_NUM}` : 'Master',
+  name: IS_WORKER ? `Worker ${config.WORKER_NUM}` : 'Master',
   streams,
 });

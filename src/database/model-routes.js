@@ -4,7 +4,7 @@
  * @file
  */
 
-import autogenerateCRUDRoutes from '../lib/auto-route';
+import creatCRUDRoutes from '../lib/auto-route';
 import models from './models';
 
 const {
@@ -14,8 +14,8 @@ const {
 } = models;
 
 export default {
-  // Model related routes
-  user: autogenerateCRUDRoutes(User,
+  // User routes
+  user: creatCRUDRoutes(User,
     {
       include: [
         {
@@ -29,15 +29,12 @@ export default {
       ],
     },
     {
-      create: {
-        permissions: ['create user'],
-      },
       retrieve: {
         permissions: ['view self', 'view others'],
         // Format the results of the values returned from the database
         formatResults: (result) => {
           const user = result;
-          const role = user.role;
+          const role = user.role || { name: null, permissions: [] };
           user.role = role.name;
           user.permissions = role.permissions.map(permission => permission.name);
           return user;
@@ -48,6 +45,27 @@ export default {
       },
       delete: {
         permissions: ['delete self', 'delete others'],
+      },
+      create: {
+        permissions: ['create users'],
+      },
+    },
+  ),
+
+  // Permission routes
+  permission: creatCRUDRoutes(Permission,
+    {
+      retrieve: {
+        permissions: ['view permissions'],
+      },
+      create: {
+        permissions: ['create permissions'],
+      },
+      update: {
+        permissions: ['update permissions'],
+      },
+      delete: {
+        permissions: ['delete permissions'],
       },
     },
   ),

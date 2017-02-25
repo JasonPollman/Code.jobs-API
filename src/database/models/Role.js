@@ -17,6 +17,10 @@ export default sequelize.define('role',
     name: {
       type: STRING(64),
       allowNull: false,
+      unique: {
+        args: true,
+        msg: 'A role with the provided name already exists',
+      },
     },
     description: {
       type: STRING(256),
@@ -25,7 +29,7 @@ export default sequelize.define('role',
     enabled: {
       type: BOOLEAN,
       allowNull: false,
-      default: true,
+      defaultValue: true,
     },
   },
   {

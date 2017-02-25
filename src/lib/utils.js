@@ -47,8 +47,8 @@ export function sortRoutes(a, b) {
  * @param {string} salt
  * @returns {string} The hasher user password.
  */
-export function hashUserPassword(password, salt) {
-  return crypto.createHmac('sha256', Buffer.from(salt, 'utf8')).update(password).digest('hex');
+export function hashUserPassword(password, salt, algorithm = 'sha256') {
+  return crypto.createHmac(algorithm, Buffer.from(salt, 'utf8')).update(password).digest('hex');
 }
 
 /**
@@ -186,4 +186,29 @@ export function singular(string) {
  */
 export function plural(string) {
   return string.replace(/s?$/, 's');
+}
+
+/**
+ * A helper to combine 2 or more sequelize hooks.
+ * @param {...function} fns The functions to execute serially.
+ * @returns {undefined}
+ * @export
+ */
+export function combineHooks(...fns) {
+  return (...args) => fns.forEach(fn => fn(...args));
+}
+
+/**
+ * Returns an error with a .status property. This is used when an error is thrown
+ * and returned to the user (it also sets the response status code).
+ * @param {number} [status=500]
+ * @param {string} [message='An unknown error has occurred']
+ * @param {string} [name='Error']
+ * @returns {Error} The new error
+ * @export
+ */
+export function eStatus(
+  status = 500, message = 'An unknown error has occurred', name = 'Error', code) {
+  const error = _.isError(message) ? message : new Error(message);
+  return Object.assign(error, { status, name, code });
 }

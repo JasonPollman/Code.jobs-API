@@ -144,6 +144,20 @@
       "USERNAME": "API Server Log",
       // The minimum log level to log
       "LEVEL": "error"
+    },
+    "USER_ACCOUNTS": {
+      // The crypto algorithm to hash user passwords with.
+      "PASSWORD_HASH_ALGORITHM": "sha256",
+      // Affects the validation of user passwords
+      // Each of these must be a number >= 0
+      "PASSWORD_VALIDATION": {
+        "MIN_LENGTH": 8,
+        "MAX_LENGTH": 24,
+        "MUST_CONTAIN_LOWERCASE_CHARACTERS": 1,
+        "MUST_CONTAIN_UPPERCASE_CHARACTERS": 1,
+        "MUST_CONTAIN_NUMERIC_CHARACTERS": 1,
+        "MUST_CONTAIN_NON_ALPHANUMERIC_CHARACTERS": 1
+      }
     }
   },
 
@@ -166,7 +180,7 @@
     },
     "SLACK_LOGGING": {
       "ENABLED": false,
-      "LEVEL": "error"
+      "LEVEL": "fatal"
     }
   },
 

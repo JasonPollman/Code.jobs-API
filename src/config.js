@@ -205,6 +205,42 @@ const validations = conf => [
     _.includes(LOG_LEVELS, conf.SLACK_LOGGING.LEVEL),
     `Configuration setting SLACK_LOGGING.LEVEL must be on of [${LOG_LEVELS.join('|')}]!`,
   ],
+  // User accounts
+  [
+    'string',
+    typeof conf.USER_ACCOUNTS.PASSWORD_HASH_ALGORITHM,
+    'Configuration setting USER_ACCOUNTS.PASSWORD_HASH_ALGORITHM must be a string!',
+  ],
+  [
+    'number',
+    typeof conf.USER_ACCOUNTS.PASSWORD_VALIDATION.MIN_LENGTH,
+    'Configuration setting conf.USER_ACCOUNTS.PASSWORD_VALIDATION.MIN_LENGTH must be a number!',
+  ],
+  [
+    'number',
+    typeof conf.USER_ACCOUNTS.PASSWORD_VALIDATION.MAX_LENGTH,
+    'Configuration setting conf.USER_ACCOUNTS.PASSWORD_VALIDATION.MAX_LENGTH must be a number!',
+  ],
+  [
+    'number',
+    typeof conf.USER_ACCOUNTS.PASSWORD_VALIDATION.MUST_CONTAIN_NUMERIC_CHARACTERS,
+    'Configuration setting conf.USER_ACCOUNTS.PASSWORD_VALIDATION.MUST_CONTAIN_NUMERIC_CHARACTERS must be a number!',
+  ],
+  [
+    'number',
+    typeof conf.USER_ACCOUNTS.PASSWORD_VALIDATION.MUST_CONTAIN_LOWERCASE_CHARACTERS,
+    'Configuration setting conf.USER_ACCOUNTS.PASSWORD_VALIDATION.MUST_CONTAIN_LOWERCASE_CHARACTERS must be a number!',
+  ],
+  [
+    'number',
+    typeof conf.USER_ACCOUNTS.PASSWORD_VALIDATION.MUST_CONTAIN_UPPERCASE_CHARACTERS,
+    'Configuration setting conf.USER_ACCOUNTS.PASSWORD_VALIDATION.MUST_CONTAIN_UPPERCASE_CHARACTERS must be a number!',
+  ],
+  [
+    'number',
+    typeof conf.USER_ACCOUNTS.PASSWORD_VALIDATION.MUST_CONTAIN_NON_ALPHANUMERIC_CHARACTERS,
+    'Configuration setting conf.USER_ACCOUNTS.PASSWORD_VALIDATION.MUST_CONTAIN_NON_ALPHANUMERIC_CHARACTERS must be a number!',
+  ],
 ];
 
 /**
@@ -219,6 +255,14 @@ const coercions = {
   // Clamp the following in the range: [0, Number.Max_VALUE]
   CLUSTER_WORKER_RESTART_DELAY: finiteGreaterThanZero,
   CLUSTER_WORKER_RESTARTS_RESET_AFTER: finiteGreaterThanZero,
+
+  USER_ACCOUNTS_PASSWORD_VALIDATION_MIN_LENGTH: value => Math.max(1, value),
+  USER_ACCOUNTS_PASSWORD_VALIDATION_MAX_LENGTH: value => Math.max(2, value),
+
+  USER_ACCOUNTS_PASSWORD_VALIDATION_MUST_CONTAIN_NUMERIC_CHARACTERS: value => Math.max(0, value),
+  USER_ACCOUNTS_PASSWORD_VALIDATION_MUST_CONTAIN_LOWERCASE_CHARACTERS: value => Math.max(0, value),
+  USER_ACCOUNTS_PASSWORD_VALIDATION_MUST_CONTAIN_UPPERCASE_CHARACTERS: value => Math.max(0, value),
+  USER_ACCOUNTS_PASSWORD_VALIDATION_MUST_CONTAIN_NON_ALPHANUMERIC_CHARACTERS: value => Math.max(0, value), // eslint-disable-line max-len
 };
 
 const coerce = (key, value) => (coercions[key] ? coercions[key](value) : value);
@@ -234,9 +278,6 @@ walkObject(config, (value, key, parent, paths) => {
 
   return coerce(property, getBoolOrOriginalValue(isNaN(numeric) ? which : numeric));
 }, true);
-
-// Validate all config values
-validations(config).forEach(validation => assert.equal(...validation));
 
 /**
  * A set of options that cannot be overridden.
@@ -261,6 +302,12 @@ const {
   WORKER_COUNT,
   WORKER_MIN_COUNT_PERCENTAGE,
 } = config.CLUSTER;
+
+// Validate all config values
+// No need to do this more than once, so only do it in the master process.
+if (constants.IS_MASTER) {
+  validations(config).forEach(validation => assert.equal(...validation));
+}
 
 // Merge in derived other configuration values
 export default deepFreeze(_.merge(config, constants, {

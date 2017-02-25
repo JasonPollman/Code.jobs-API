@@ -1,6 +1,9 @@
 {
   "verbose": false,
   "ext": "js json sql",
+  "events": {
+    "restart": "clear"
+  },
   "watch": [
     "nodemon.json",
     "package.json",

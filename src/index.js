@@ -100,12 +100,12 @@ function onWorkerExit(worker, code) {
 
     if (alive === 0) {
       // No workers remaining
-      throw new Error('All workers have exhausted their spawn allocations. No workers remaining... exiting');
+      throw new Error('All workers have exhausted their spawn allocations. No workers remaining. Exiting...');
     }
 
     if (alive < WORKER_MIN_ALLOWED) {
       // Fallen below the worker minimum allowed threshold
-      throw new Error(`Too few workers (${alive} alive, ${WORKER_MIN_ALLOWED} needed)... exiting`);
+      throw new Error(`Too few workers (${alive} alive, ${WORKER_MIN_ALLOWED} needed). Exiting...`);
     }
 
     return;
