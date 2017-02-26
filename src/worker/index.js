@@ -8,21 +8,35 @@ import _ from 'lodash';
 import http from 'http';
 import https from 'https';
 import express from 'express';
-import config from './config';
-import log from './lib/logger';
-import redis from './lib/redis';
-import models from './database/models';
-import middlewares from './middlewares';
-import routes from './routes';
-import './database/associations';
+import config from '../config';
+import log from '../lib/logger';
+import redis from '../lib/redis';
+import models from '../database/models';
+import middlewares from '../middlewares';
+import routes from '../routes';
+import heartbeat from '../lib/heartbeat';
+import '../database/associations';
 
-import { validateAppIdentifier } from './routewares';
-import { sortRoutes, validateRoute, has } from './lib/utils';
+import { validateAppIdentifier } from '../routewares';
+import { sortRoutes, validateRoute, has, hrtimeToMilliseconds } from '../lib/utils';
 
 process.title = config.PROCESS_TITLES.WORKER;
 
-const { NODE_ENV, WORKER_NUM, APPLICATION_NAME } = config;
-const { HTTPS_OPTIONS, PORT, DISABLED_MIDDLEWARES, DISABLED_ROUTES } = config.SERVER;
+const {
+  NODE_ENV,
+  WORKER_NUM,
+  APPLICATION_NAME,
+  PROCESS_START,
+  CONFIG_WARNINGS,
+} = config;
+
+const {
+  HTTPS_OPTIONS,
+  PORT,
+  DISABLED_MIDDLEWARES,
+  DISABLED_ROUTES,
+} = config.SERVER;
+
 const httpsEnabled = _.isObject(HTTPS_OPTIONS);
 
 /**
@@ -32,7 +46,7 @@ const httpsEnabled = _.isObject(HTTPS_OPTIONS);
 const DEFAULT_ROUTE_PROPS = {
   method: 'all',
   requiresValidAppId: true,
-  permission: 'none',
+  permission: [],
   specificity: 0,
 };
 
@@ -133,6 +147,8 @@ function initializeServer() {
  */
 async function start() {
   log.debug('%s Worker Bootstrapping', APPLICATION_NAME);
+  if (CONFIG_WARNINGS.length) CONFIG_WARNINGS.forEach(msg => log.warn(msg));
+
   redis.init();
 
   // Setup express middlewares
@@ -147,9 +163,16 @@ async function start() {
   // Kick off the server
   await initializeServer();
 
+  // Initialize heartbeat for worker
+  heartbeat();
+
   const { address, family, port } = server.address();
   const connectionString = `http${httpsEnabled ? 's' : ''}://${family === 'IPv6' ? `[${address}]` : address}:${port}`;
-  log.debug('Server initialized and listening on %s', connectionString);
+
+  log.info(
+    'Server initialized and listening on %s in %sms',
+    connectionString,
+    hrtimeToMilliseconds(process.hrtime(PROCESS_START), 2));
 }
 
 // Start the worker server

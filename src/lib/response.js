@@ -46,8 +46,9 @@ function errorResponse(error) {
  * @returns {undefined}
  */
 function stripPassword(value, key, parent) {
-  if (key !== 'password') return;
-  Object.assign(parent, { password: undefined });
+  const keyLC = key.toString().toLowerCase();
+  if (keyLC !== 'password' && keyLC !== 'pass') return;
+  Object.assign(parent, { [key]: undefined });
 }
 
 /**
@@ -81,7 +82,7 @@ export default class JSONResponse {
     walkObject(response, stripPassword);
 
     // Add default response values
-    const properties = Object.assign({ time: Date.now() }, DEFAULT_RESPONSE, response);
+    const properties = Object.assign({}, DEFAULT_RESPONSE, response);
     const { message, payload, status } = properties;
 
     // Use default HTTP status code, if no message

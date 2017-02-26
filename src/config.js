@@ -13,12 +13,19 @@ import { cpus } from 'os';
 import cluster from 'cluster';
 import { deepFreeze, walkObject, finiteGreaterThanZero, getBoolOrOriginalValue } from './lib/utils';
 
+const PROCESS_START = process.hrtime();
 const LOG_LEVELS = ['trace', 'debug', 'info', 'error', 'fatal'];
 
 const {
   CONFIG_PATH = path.join(__dirname, '..', 'config.json'),
   NODE_ENV = 'production',
 } = process.env;
+
+/**
+ * A set of configuration warnings, to be logged later when the logger is available.
+ * @type {Array<string>}
+ */
+const CONFIG_WARNINGS = [];
 
 // Read in the config.json file and extend the default (*) env settings
 // with the current env settings
@@ -47,6 +54,11 @@ const validations = conf => [
     'boolean',
     typeof conf.FIRST_RUN,
     'Configuration setting FIRST_RUN must be a boolean!',
+  ],
+  [
+    'string',
+    typeof conf.LOG_LEVEL,
+    'Configuration setting LOG_LEVEL must be a string!',
   ],
   // Server validations
   [
@@ -92,6 +104,11 @@ const validations = conf => [
     'Configuration setting SERVER.DISABLED_ROUTES must be a plain object of booleans!',
   ],
   // Cluster validations
+  [
+    true,
+    _.includes(['rr', 'os'], conf.CLUSTER.SCHEDULING_POLICY),
+    'Configuration setting CLUSTER.SCHEDULING_POLICY must be one of [rr|os]!',
+  ],
   [
     'number',
     typeof conf.CLUSTER.WORKER_COUNT,
@@ -203,7 +220,18 @@ const validations = conf => [
   [
     true,
     _.includes(LOG_LEVELS, conf.SLACK_LOGGING.LEVEL),
-    `Configuration setting SLACK_LOGGING.LEVEL must be on of [${LOG_LEVELS.join('|')}]!`,
+    `Configuration setting SLACK_LOGGING.LEVEL must be one of [${LOG_LEVELS.join('|')}]!`,
+  ],
+  // Heartbeat
+  [
+    'boolean',
+    typeof conf.HEARTBEAT.ENABLED,
+    'Configuration setting HEARTBEAT.ENABLED must be a boolean!',
+  ],
+  [
+    'number',
+    typeof conf.HEARTBEAT.INTERVAL,
+    'Configuration setting HEARTBEAT.INTERVAL must be a boolean!',
   ],
   // User accounts
   [
@@ -263,9 +291,16 @@ const coercions = {
   USER_ACCOUNTS_PASSWORD_VALIDATION_MUST_CONTAIN_LOWERCASE_CHARACTERS: value => Math.max(0, value),
   USER_ACCOUNTS_PASSWORD_VALIDATION_MUST_CONTAIN_UPPERCASE_CHARACTERS: value => Math.max(0, value),
   USER_ACCOUNTS_PASSWORD_VALIDATION_MUST_CONTAIN_NON_ALPHANUMERIC_CHARACTERS: value => Math.max(0, value), // eslint-disable-line max-len
+
+  // Disable heartbeat if redis is disabled
+  HEARTBEAT_ENABLED: (val, key, conf) => {
+    if (conf.REDIS.ENABLED) return val;
+    CONFIG_WARNINGS.push('Redis is disabled, as a result the heartbeat service is also now disabled.');
+    return false;
+  },
 };
 
-const coerce = (key, value) => (coercions[key] ? coercions[key](value) : value);
+const coerce = (key, value, conf) => (coercions[key] ? coercions[key](value, key, conf) : value);
 
 // Override default settings with environment variables.
 // Sub-settings are joined with an underscore here, so the environment variable SERVER_PORT
@@ -276,7 +311,7 @@ walkObject(config, (value, key, parent, paths) => {
   const which = _.isUndefined(override) ? value : override;
   const numeric = _.isString(which) ? Number(which) : NaN;
 
-  return coerce(property, getBoolOrOriginalValue(isNaN(numeric) ? which : numeric));
+  return coerce(property, getBoolOrOriginalValue(isNaN(numeric) ? which : numeric), config);
 }, true);
 
 /**
@@ -286,13 +321,18 @@ walkObject(config, (value, key, parent, paths) => {
  */
 const constants = {
   NODE_ENV,
+  PROCESS_START,
+  CONFIG_WARNINGS,
+
   IS_WORKER: cluster.isWorker,
   IS_MASTER: cluster.isMaster,
   PROCESS_TITLES: {
     MASTER: `${config.APPLICATION_NAME} Master`,
     WORKER: `${config.APPLICATION_NAME} Worker`,
   },
+
   CACHE_PREFIXES: {
+    HEARTBEAT: 'HEARTBEAT',
     REQUESTS_PER_MINUTE: 'SERVER_IP_REQUESTS_PER_MINUTE',
     ROUTE_CACHE: 'ROUTE_CACHE',
   },

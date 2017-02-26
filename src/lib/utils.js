@@ -4,10 +4,17 @@
  */
 
 import util from 'util';
+import cluster from 'cluster';
 import crypto from 'crypto';
 import _ from 'lodash';
 
 export const NOOP_IDENT = x => x;
+
+/**
+ * @returns {number} The number of milliseconds the master process has been running.
+ * @function
+ */
+export const uptime = () => process.uptime() * 1000;
 
 /**
  * Used to spread into Object.defineProperties.
@@ -150,11 +157,13 @@ export function validateRoute(route, category) {
 /**
  * Converts an hrtime tuple to milliseconds
  * @param {Array<number>} hrtime An hrtime tuple.
+ * @param {number} fixed If proved the time will have .toFixed([fixed]) called on it.
  * @returns {number} The number of milliseconds representing the hrtime tuple.
  * @export
  */
-export function hrtimeToMilliseconds(hrtime) {
-  return (((hrtime[0] * 1e+9) + hrtime[1]) / 1e6);
+export function hrtimeToMilliseconds(hrtime, fixed) {
+  const time = (((hrtime[0] * 1e+9) + hrtime[1]) / 1e6);
+  return fixed ? time.toFixed(fixed) : time;
 }
 
 /**
@@ -211,4 +220,12 @@ export function eStatus(
   status = 500, message = 'An unknown error has occurred', name = 'Error', code) {
   const error = _.isError(message) ? message : new Error(message);
   return Object.assign(error, { status, name, code });
+}
+
+/**
+ * @returns {number} The number of active workers.
+ * @export
+ */
+export function workerCount() {
+  return Object.keys(cluster.workers).length;
 }

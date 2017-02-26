@@ -4,7 +4,6 @@
  * @file
  */
 
-import _ from 'lodash';
 import path from 'path';
 import cluster from 'cluster';
 import config from './config';
@@ -12,22 +11,23 @@ import log from './lib/logger';
 import setup from './lib/setup';
 import sequelize from './database';
 import models from './database/models';
+import heartbeat from './lib/heartbeat';
+import { uptime, hrtimeToMilliseconds, activeWorkerCount } from './lib/utils';
+
 import './database/associations';
 
 process.title = config.PROCESS_TITLES.MASTER;
-
-cluster.setupMaster({
-  exec: path.join(__dirname, 'worker'),
-  stdio: 'inherit',
-});
 
 const {
   FIRST_RUN,
   NODE_ENV,
   APPLICATION_NAME,
+  PROCESS_START,
+  CONFIG_WARNINGS,
 } = config;
 
 const {
+  SCHEDULING_POLICY,
   WORKER_COUNT,
   WORKER_DELAY_BETWEEN_SPAWNS,
   WORKER_RESTART_DELAY,
@@ -40,11 +40,15 @@ const {
   SYNC,
 } = config.DATABASE;
 
-/**
- * @returns {number} The number of milliseconds the master process has been running.
- * @function
- */
-const uptime = () => process.uptime() * 1000;
+// Cluster Settings
+cluster.schedulingPolicy = SCHEDULING_POLICY === 'rr'
+  ? cluster.SCHED_RR
+  : cluster.SCHED_NONE;
+
+cluster.setupMaster({
+  exec: path.join(__dirname, 'worker'),
+  stdio: 'inherit',
+});
 
 /**
  * Gets the "worker number". A number that represents the worker in regard to it's "place".
@@ -96,7 +100,7 @@ function onWorkerExit(worker, code) {
   // same worker number as the now dead one).
   if (WORKER_RESTARTS_MAX > 0 && ref.forks >= WORKER_RESTARTS_MAX) {
     log.error('Worker %s has exhausted it\'s spawn allocations (%s). It will not be reforked.', num, ref.forks + 1);
-    const alive = Object.keys(cluster.workers).length;
+    const alive = activeWorkerCount();
 
     if (alive === 0) {
       // No workers remaining
@@ -179,6 +183,7 @@ export async function start() {
   log.info('%s Master Bootstrapping', APPLICATION_NAME);
   log.debug('Initialized with configuration', config);
 
+  if (CONFIG_WARNINGS.length) CONFIG_WARNINGS.forEach(msg => log.warn(msg));
   const firstrun = FIRST_RUN && NODE_ENV !== 'production';
 
   // Pre-sync setup
@@ -193,6 +198,10 @@ export async function start() {
 
   // Fork all worker processes
   await bootstrapCluster();
+
+  // Initialize heartbeat for master
+  heartbeat();
+  log.info('Master bootstrapped in %sms', hrtimeToMilliseconds(process.hrtime(PROCESS_START), 2));
 }
 
 cluster.on('exit', onWorkerExit);

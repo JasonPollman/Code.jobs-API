@@ -20,7 +20,7 @@ const sequelize = new Sequelize(SCHEMA, USER, PASS, {
   port: PORT,
   pool: POOL_CONFIG,
 
-  logging: config.NODE_ENV !== 'production' ? sql => log.debug(format(sql)) : false,
+  logging: config.NODE_ENV !== 'production' ? sql => log.trace(`${format(sql)}\n`) : false,
 });
 
 export default sequelize;

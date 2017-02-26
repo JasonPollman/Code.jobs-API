@@ -5,4 +5,11 @@
 
 import parser from 'body-parser';
 
-export default parser.urlencoded({ extended: true });
+const options = {
+  extended: true,
+};
+
+export default {
+  urlencodedBodyParser: parser.urlencoded(options),
+  JSONBodyParser: parser.json(options),
+};

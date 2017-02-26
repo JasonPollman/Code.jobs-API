@@ -17,6 +17,7 @@ const {
 } = config.SLACK_LOGGING;
 
 const {
+  LOG_LEVEL,
   IS_MASTER,
   IS_WORKER,
 } = config;
@@ -28,6 +29,7 @@ const {
 const colors = {
   FATAL: '#c63012',
   ERROR: '#e59e12',
+  WARN: '#e59e12',
   INFO: '#1281c6',
   DEBUG: '#36a64f',
   TRACE: '#d6d6d6',
@@ -59,7 +61,7 @@ export function slackMessageFormatter(message, lvl) {
  */
 const streams = [
   {
-    level: process.env.LOG_LEVEL || 'debug',
+    level: LOG_LEVEL || 'info',
     stream: process.stdout,
   },
 ];

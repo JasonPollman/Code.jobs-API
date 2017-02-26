@@ -4,18 +4,20 @@
  * @file
  */
 
-import creatCRUDRoutes from '../lib/auto-route';
+import _ from 'lodash';
+import createCRUDRoutes from '../lib/auto-route';
 import models from './models';
 
 const {
   User,
   Role,
   Permission,
+  RolePermission,
 } = models;
 
 export default {
   // User routes
-  user: creatCRUDRoutes(User,
+  user: createCRUDRoutes(User,
     {
       include: [
         {
@@ -52,21 +54,10 @@ export default {
     },
   ),
 
-  // Permission routes
-  permission: creatCRUDRoutes(Permission,
-    {
-      retrieve: {
-        permissions: ['view permissions'],
-      },
-      create: {
-        permissions: ['create permissions'],
-      },
-      update: {
-        permissions: ['update permissions'],
-      },
-      delete: {
-        permissions: ['delete permissions'],
-      },
-    },
-  ),
+  // General model routes
+  ..._.mapValues({
+    RolePermission,
+    Role,
+    Permission,
+  }, Model => createCRUDRoutes(Model)),
 };

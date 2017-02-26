@@ -253,6 +253,10 @@ export default function createCachableCRUDRoutes(model, fetchOptions = {}, optio
   const nameSingular = singular(mname);
   const namePlural = plural(mname);
 
+  // Model names converted to the route convention
+  const routeNameSingular = _.kebabCase(nameSingular);
+  const routeNamePlural = _.kebabCase(namePlural);
+
   let fetchingOptions = fetchOptions;
   let overrides = options;
 
@@ -291,45 +295,45 @@ export default function createCachableCRUDRoutes(model, fetchOptions = {}, optio
   // Setup all the routing options for each CRUD route
   const routes = {
     create: {
-      permissions: 'none',
+      permissions: [`create ${namePlural}`],
       specificity: 0,
 
       ...overrides.create,
 
       method: 'post',
-      match: `/${namePlural}/create`,
+      match: `/${routeNamePlural}/create`,
       handler: getCreateHandler(model, namePlural, findOneHandler),
     },
     update: {
-      permissions: 'none',
+      permissions: [`edit ${namePlural}`],
       specificity: 0,
 
       ...overrides.update,
 
       method: 'post',
-      match: `/${nameSingular}/:id/edit`,
+      match: `/${routeNameSingular}/:id/edit`,
       handler: getUpdateHandler(model, namePlural, findOneHandler),
     },
     delete: {
-      permissions: 'none',
+      permissions: [`delete ${namePlural}`],
       specificity: 0,
 
       ...overrides.delete,
       confirmDelete: undefined,
 
       method: 'post',
-      match: `/${nameSingular}/:id/delete`,
+      match: `/${routeNameSingular}/:id/delete`,
       handler: getDeleteHandler(model, namePlural, overrides.delete.confirmDelete),
     },
     retrieve: [
       {
-        permissions: 'none',
+        permissions: [`view ${namePlural}`],
         specificity: 0,
 
         ...overrides.retrieve,
 
         method: 'get',
-        match: `/${nameSingular}/:id`,
+        match: `/${routeNameSingular}/:id`,
         handler: findOneHandler,
       },
       {
@@ -339,17 +343,17 @@ export default function createCachableCRUDRoutes(model, fetchOptions = {}, optio
         ...overrides.retrieve,
 
         method: 'get',
-        match: `/${namePlural}`,
+        match: `/${routeNamePlural}`,
         handler: getFindManyHandler(model, fetchingOptions, formatters.retrieve),
       },
       {
-        permissions: 'none',
+        permissions: [`view ${namePlural}`],
         specificity: 0,
 
         ...overrides.retrieve,
 
         method: 'get',
-        match: `/${nameSingular}/:field/:value`,
+        match: `/${routeNameSingular}/:field/:value`,
         handler: async (req, res) => {
           const { field, value } = req.params;
           const fOptions = { ...fetchingOptions, where: { [field]: value } };

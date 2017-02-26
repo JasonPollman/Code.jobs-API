@@ -1,9 +1,16 @@
 /**
  * Defines the /ping route.
+ * A health check route.
  * @file
  */
 
 import os from 'os';
+import { heartbeatMasterStatus, heartbeatWorkerStatuses } from '../lib/heartbeat';
+import config from '../config';
+
+const {
+  HEARTBEAT,
+} = config;
 
 /**
  * A ping/health check route.
@@ -15,33 +22,32 @@ export default {
   // A string used to match routes (i.e app[method]([match]))
   match: ['/ping', '/ping/:timeout'],
   // The app[method] callback handler
-  handler: (request, response) => {
+  handler: async function ping(request, response) {
     const timeout = parseInt(request.params.timeout, 10) || 0;
+    const server = this.server;
+
     const payload = {
-      process: {
-        pid: process.pid,
-        uid: process.getuid(),
-        env: process.env.NODE_ENV,
-        version: process.version,
-        uptime: process.uptime(),
-        argv: process.argv,
-        cpu: process.cpuUsage(),
-      },
       os: {
-        uptime: os.uptime(),
+        hostname: os.hostname(),
         platform: os.platform(),
         release: os.release(),
-        hostname: os.hostname(),
-        cpus: os.cpus(),
+        uptime: os.uptime() * 1000,
+        cpus: os.cpus().length,
       },
+      server: {
+        listening: server.listening,
+        timeout: server.timeout,
+        address: server.address(),
+      },
+      master: HEARTBEAT.ENABLED ? await heartbeatMasterStatus() : undefined,
+      workers: HEARTBEAT.ENABLED ? await heartbeatWorkerStatuses() : undefined,
+      config,
     };
 
     setTimeout(() => {
       response.status(200).respond({
         success: true,
         message: 'pong',
-        worker: process.pid,
-        timeout,
         payload,
       });
     }, timeout);

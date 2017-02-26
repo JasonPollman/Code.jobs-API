@@ -6,7 +6,8 @@
 import cors from './cors';
 import headers from './headers';
 import response from './response';
-import requestLimiter from './request-limit';
+import limiter from './request-limit';
+import requestStats from './request-stats';
 import parser from './parser';
 
 /**
@@ -21,8 +22,9 @@ import parser from './parser';
  */
 export default {
   response,
+  requestStats,
   cors,
   headers,
-  requestLimiter,
-  parser,
+  limiter,
+  ...parser,
 };
