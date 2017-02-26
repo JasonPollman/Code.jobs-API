@@ -10,24 +10,24 @@ import permissions from './permissions';
 export default Object.freeze({
   ADMIN: {
     name: 'admin',
-    description: 'Super User Account',
+    description: 'A super user that has all permissions',
     permissions: [],
   },
   DISABLED_USER: {
     name: 'disabled',
-    description: 'An user that has been disabled',
+    description: 'A user account that has been disabled',
     permissions: [],
   },
   ANONYMOUS_USER: {
     name: 'anonymous',
-    description: 'An unauthenticated user',
+    description: 'An un-authenticated user',
     permissions: [
       permissions.CREATE_ACCOUNT,
     ],
   },
   MODERATOR: {
     name: 'moderator',
-    description: 'Moderator Account',
+    description: 'A user with some elevated privledges, but not as powerful as an admin',
     permissions: [
       permissions.CREATE_ACCOUNT,
       permissions.VIEW_SELF,

@@ -8,11 +8,14 @@ import url from 'url';
 import log from '../lib/logger';
 import unauthorized from '../routes/unauthorized';
 import config from '../config';
+
 import PERMISSIONS from '../config/permissions';
+import ROLES from '../config/roles';
 
 const { DISABLE_ROUTE_PERMISSIONS } = config.SERVER;
 const { NODE_ENV } = config;
 const { NONE } = PERMISSIONS;
+const { ADMIN } = ROLES;
 
 /**
  * Checks that the user has the necessary permissions to access the route.
@@ -30,10 +33,13 @@ export default function validateUserPermissionsMiddleware(permissions) {
     const { user, method } = request;
 
     // User has one of the necessary permission to access this route
-    if (_.isObject(user) && _.intersection(user.permissions, permissions).length > 0) return next();
-    const href = url.parse(request.url);
+    if (_.isPlainObject(user)
+      && (user.role === ADMIN.name || _.intersection(user.permissions, permissions).length > 0)) {
+      return next();
+    }
 
     // Unauthorized...
+    const href = url.parse(request.url);
     log.warn(...(user
         ? ['Unauthorized %s to %s by user %s @%s', method, href.pathname, user.email, request.ip]
         : ['Unauthorized %s to %s by unknown user @%s', method, href.pathname, request.ip]));
