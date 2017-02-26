@@ -42,6 +42,7 @@ See ``config.json`` for descriptions and usage for available environment variabl
   to the specified slack webhook url.
 - **Application Validation**    
   Each application that uses the API must be registered in the database and submit their *uuid* with each request within the ``X-Application-Identifier`` header. For unauthorized apps, all responses sent back are ``401`` (unauthorized).
+- **Database Request/Response Logging**
 
 
 

@@ -14,6 +14,8 @@ const {
   Role,
   Permission,
   RolePermission,
+  Request,
+  Response,
 } = models;
 
 const {
@@ -71,4 +73,17 @@ export default {
     Role,
     Permission,
   }, Model => createCRUDRoutes(Model)),
+
+  // Read only logging routes
+  request: createCRUDRoutes(Request, {
+    create: { exclude: true },
+    update: { exclude: true },
+    delete: { exclude: true },
+  }),
+
+  response: createCRUDRoutes(Response, {
+    create: { exclude: true },
+    update: { exclude: true },
+    delete: { exclude: true },
+  }),
 };

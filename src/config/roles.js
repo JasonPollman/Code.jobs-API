@@ -35,6 +35,8 @@ export default Object.freeze({
       permissions.EDIT_SELF,
       permissions.EDIT_OTHERS,
       permissions.DELETE_SELF,
+      permissions.VIEW_REQUESTS,
+      permissions.VIEW_RESPONSES,
     ],
   },
   STANDARD_USER: {

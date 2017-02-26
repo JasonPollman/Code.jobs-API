@@ -8,11 +8,15 @@ import Application from './Application';
 import Permission from './Permission';
 import Role from './Role';
 import RolePermission from './RolePermission';
+import Request from './Request';
+import Response from './Response';
 
 export default {
   // Please keep these in alphabetical order!
   Application,
   Permission,
+  Response,
+  Request,
   Role,
   RolePermission,
   User,

@@ -35,6 +35,16 @@ export default {
     const timeout = parseInt(request.params.timeout, 10) || 0;
     const server = this.server;
 
+    let masterStatus;
+    let workerStatuses;
+
+    if (HEARTBEAT.ENABLED) {
+      [masterStatus, workerStatuses] = await Promise.all([
+        heartbeatMasterStatus(),
+        heartbeatWorkerStatuses(),
+      ]);
+    }
+
     const payload = {
       os: {
         hostname: os.hostname(),
@@ -48,8 +58,8 @@ export default {
         timeout: server.timeout,
         address: server.address(),
       },
-      master: HEARTBEAT.ENABLED ? await heartbeatMasterStatus() : undefined,
-      workers: HEARTBEAT.ENABLED ? await heartbeatWorkerStatuses() : undefined,
+      master: masterStatus,
+      workers: workerStatuses,
       config: clonedConfig,
     };
 

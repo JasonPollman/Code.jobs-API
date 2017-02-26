@@ -3,12 +3,32 @@
  * @file
  */
 
+import compression from 'compression';
+import parser from 'body-parser';
+
 import cors from './cors';
 import headers from './headers';
 import response from './response';
 import limiter from './request-limit';
 import requestStats from './request-stats';
-import parser from './parser';
+import requestLogger from './request-logger';
+
+/**
+ * Options used by each body-parser type.
+ * @type {object}
+ */
+const options = {
+  extended: true,
+};
+
+/**
+ * The body parsers we'll be using
+ * @type {object<function>}
+ */
+const parsers = {
+  urlencodedBodyParser: parser.urlencoded(options),
+  jsonBodyParser: parser.json(options),
+};
 
 /**
  * All middlewares *must* be defined here, otherwise they won't get picked up!
@@ -22,9 +42,11 @@ import parser from './parser';
  */
 export default {
   response,
+  requestLogger,
   requestStats,
-  cors,
-  headers,
   limiter,
-  ...parser,
+  cors,
+  compression: compression(),
+  headers,
+  ...parsers,
 };
