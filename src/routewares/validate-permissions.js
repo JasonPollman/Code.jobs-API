@@ -30,19 +30,19 @@ export default function validateUserPermissionsMiddleware(permissions) {
 
     // Route has no permissions
     if (!permissions.length || _.includes(permissions, NONE)) return next();
-    const { user, method } = request;
+    const { user, method, ip } = request;
 
-    // User has one of the necessary permission to access this route
+    // User has one of the necessary permissions to access this route
     if (_.isPlainObject(user)
       && (user.role === ADMIN.name || _.intersection(user.permissions, permissions).length > 0)) {
       return next();
     }
 
     // Unauthorized...
-    const href = url.parse(request.url);
+    const { pathname } = url.parse(request.url);
     log.warn(...(user
-        ? ['Unauthorized %s to %s by user %s @%s', method, href.pathname, user.email, request.ip]
-        : ['Unauthorized %s to %s by unknown user @%s', method, href.pathname, request.ip]));
+        ? ['Unauthorized %s to %s by user %s @%s', method, pathname, user.email, ip]
+        : ['Unauthorized %s to %s by unknown user @%s', method, pathname, ip]));
 
     return unauthorized.handler.call(this, request, response);
   };
