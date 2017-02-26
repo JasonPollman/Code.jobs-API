@@ -85,7 +85,7 @@ function middlewareWrapper(callback) {
         e.status = 500;
       }
 
-      return NODE_ENV !== 'production' ? res.status(500).respond(e) : res.redirect('/error');
+      return res.status(500).respond(e);
     }
   };
 }

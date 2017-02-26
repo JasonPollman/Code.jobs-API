@@ -11,13 +11,13 @@ import JSON5 from 'json5';
 import assert from 'assert';
 import { cpus } from 'os';
 import cluster from 'cluster';
-import { deepFreeze, walkObject, finiteGreaterThanZero, getBoolOrOriginalValue } from './lib/utils';
+import { deepFreeze, walkObject, finiteGreaterThanZero, getBoolOrOriginalValue } from '../lib/utils';
 
 const PROCESS_START = process.hrtime();
 const LOG_LEVELS = ['trace', 'debug', 'info', 'error', 'fatal'];
 
 const {
-  CONFIG_PATH = path.join(__dirname, '..', 'config.json'),
+  CONFIG_PATH = path.join(__dirname, '..', '..', 'config.json'),
   NODE_ENV = 'production',
 } = process.env;
 
@@ -29,14 +29,21 @@ const CONFIG_WARNINGS = [];
 
 // Read in the config.json file and extend the default (*) env settings
 // with the current env settings
-const jsonConfig = JSON5.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+const fconfig = JSON5.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
 
 // Get the extended configuration
 let environmentConfig;
-environmentConfig = jsonConfig[NODE_ENV];
-environmentConfig = _.merge(environmentConfig.EXTENDS || {}, jsonConfig[NODE_ENV]);
+environmentConfig = fconfig[NODE_ENV];
+environmentConfig = _.merge(environmentConfig.EXTENDS || {}, fconfig[NODE_ENV]);
 
-const config = _.merge({}, jsonConfig['*'], environmentConfig);
+const config = _.merge({}, fconfig['*'], environmentConfig);
+
+if (config.DATABASE.PASS) {
+  CONFIG_WARNINGS.push(
+    'Detected hardcoded database password in JSON configuration.\n' +
+    '*** DON\'T STORE PASSWORDS IN CONFIGURATION FILES! ***',
+  );
+}
 
 /**
  * A set of validations to pass to assert.equal().

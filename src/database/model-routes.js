@@ -7,6 +7,7 @@
 import _ from 'lodash';
 import createCRUDRoutes from '../lib/auto-route';
 import models from './models';
+import permissions from '../config/permissions';
 
 const {
   User,
@@ -14,6 +15,16 @@ const {
   Permission,
   RolePermission,
 } = models;
+
+const {
+  VIEW_SELF,
+  VIEW_OTHERS,
+  EDIT_SELF,
+  EDIT_OTHERS,
+  DELETE_SELF,
+  DELETE_OTHERS,
+  CREATE_ACCOUNT,
+} = permissions;
 
 export default {
   // User routes
@@ -32,7 +43,7 @@ export default {
     },
     {
       retrieve: {
-        permissions: ['view self', 'view others'],
+        permissions: [VIEW_SELF, VIEW_OTHERS],
         // Format the results of the values returned from the database
         formatResults: (result) => {
           const user = result;
@@ -43,13 +54,13 @@ export default {
         },
       },
       update: {
-        permissions: ['update self', 'update others'],
+        permissions: [EDIT_SELF, EDIT_OTHERS],
       },
       delete: {
-        permissions: ['delete self', 'delete others'],
+        permissions: [DELETE_SELF, DELETE_OTHERS],
       },
       create: {
-        permissions: ['create users'],
+        permissions: [CREATE_ACCOUNT],
       },
     },
   ),

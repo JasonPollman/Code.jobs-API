@@ -4,6 +4,7 @@
  * @file
  */
 
+import _ from 'lodash';
 import os from 'os';
 import { heartbeatMasterStatus, heartbeatWorkerStatuses } from '../lib/heartbeat';
 import config from '../config';
@@ -11,6 +12,14 @@ import config from '../config';
 const {
   HEARTBEAT,
 } = config;
+
+/**
+ * Sent back with the ping response.
+ * We have to clone the config, as the .respond() method will strip out passwords
+ * and the config object is immutable.
+ * @type {object}
+ */
+const clonedConfig = _.cloneDeep(config);
 
 /**
  * A ping/health check route.
@@ -41,7 +50,7 @@ export default {
       },
       master: HEARTBEAT.ENABLED ? await heartbeatMasterStatus() : undefined,
       workers: HEARTBEAT.ENABLED ? await heartbeatWorkerStatuses() : undefined,
-      config,
+      config: clonedConfig,
     };
 
     setTimeout(() => {

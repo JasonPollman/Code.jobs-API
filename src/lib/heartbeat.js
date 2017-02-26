@@ -27,7 +27,7 @@ const {
  */
 export function heartbeatWorkerStatuses() {
   return Promise.all(_.times(config.CLUSTER.WORKER_COUNT, n =>
-    redis.getAsync(redis.key(config.CACHE_PREFIXES.HEARTBEAT, n + 1))));
+    redis.getAsync(redis.key(config.CACHE_PREFIXES.HEARTBEAT, 'WORKER', n + 1))));
 }
 
 /**

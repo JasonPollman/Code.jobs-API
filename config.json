@@ -196,7 +196,7 @@
     },
     "HEARTBEAT": {
       "ENABLED": true,
-      "INTERVAL": 10000
+      "INTERVAL": 1000
     }
   },
 
