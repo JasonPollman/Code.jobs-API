@@ -99,6 +99,11 @@ const validations = conf => [
     'Configuration setting SERVER.APP_ID_VALIDATION_ENABLED must be a boolean!',
   ],
   [
+    'boolean',
+    typeof conf.SERVER.DISABLE_ROUTE_PERMISSIONS,
+    'Configuration setting SERVER.DISABLE_ROUTE_PERMISSIONS must be a boolean!',
+  ],
+  [
     true,
     _.isPlainObject(conf.SERVER.DISABLED_MIDDLEWARES)
       && _.every(conf.SERVER.DISABLED_MIDDLEWARES, _.isBoolean),
@@ -303,6 +308,17 @@ const coercions = {
   HEARTBEAT_ENABLED: (val, key, conf) => {
     if (conf.REDIS.ENABLED) return val;
     CONFIG_WARNINGS.push('Redis is disabled, as a result the heartbeat service is also now disabled.');
+    return false;
+  },
+
+  // Warn about route permissions being disabled in production
+  SERVER_DISABLE_ROUTE_PERMISSIONS: (val) => {
+    if (NODE_ENV !== 'production' || val !== true) return val;
+
+    CONFIG_WARNINGS.push(
+      'DISABLE_ROUTE_PERMISSIONS is set to TRUE, but NODE_ENV is "production".\n' +
+      'This isn\'t allowed. Route permissions have been automatically re-enabled.',
+    );
     return false;
   },
 };

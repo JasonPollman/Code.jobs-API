@@ -133,13 +133,14 @@ export function finiteGreaterThanZero(n) {
 
 /**
  * Validates a route object.
- * @param {object} route The route object to validate.
+ * @param {object} httpRoute The route object to validate.
  * @param {string} category The "category" (or export name) of the route object.
  * @returns {object} The passed in route object.
  * @export
  */
-export function validateRoute(route, category) {
-  const { handler, match } = route;
+export function validateRoute(httpRoute, category) {
+  const route = httpRoute;
+  const { handler, match, permissions } = route;
 
   if (!_.isFunction(handler)) {
     throw new TypeError(
@@ -149,6 +150,18 @@ export function validateRoute(route, category) {
   if (!Array.isArray(match) && !_.isRegExp(match) && !_.isString(match)) {
     throw new TypeError(
       `Route listed in "${category}" must have a string, Array, or RegExp value for property "match".`);
+  }
+
+  // Validate route permissions array
+  if (_.isString(permissions)) {
+    route.permissions = [permissions];
+  } else if (_.isNil(permissions)) {
+    route.permissions = [];
+  }
+
+  if (!_.isArray(route.permissions)) {
+    throw new TypeError(
+      `Route listed in "${category}" is invalid. Property permissions must be either a string or array.`);
   }
 
   return route;

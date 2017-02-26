@@ -17,13 +17,16 @@ import routes from '../routes';
 import heartbeat from '../lib/heartbeat';
 import '../database/associations';
 
-import { validateAppIdentifier } from '../routewares';
 import { sortRoutes, validateRoute, has, hrtimeToMilliseconds } from '../lib/utils';
+
+import {
+  validateAppIdentifier,
+  validateUserPermissions,
+} from '../routewares';
 
 process.title = config.PROCESS_TITLES.WORKER;
 
 const {
-  NODE_ENV,
   WORKER_NUM,
   APPLICATION_NAME,
   PROCESS_START,
@@ -46,7 +49,7 @@ const httpsEnabled = _.isObject(HTTPS_OPTIONS);
 const DEFAULT_ROUTE_PROPS = {
   method: 'all',
   requiresValidAppId: true,
-  permission: [],
+  permissions: [],
   specificity: 0,
 };
 
@@ -109,13 +112,15 @@ function initializeMiddleware(middleware, name) {
  * @returns {undefined}
  */
 function initializeRoute(route) {
-  const { category, method, match, handler, requiresValidAppId } = route;
+  const { category, method, match, handler, requiresValidAppId, permissions } = route;
   const callback = middlewareWrapper(handler);
+
   const validateAppId = middlewareWrapper(validateAppIdentifier(requiresValidAppId));
+  const validatePermissions = middlewareWrapper(validateUserPermissions(permissions));
 
   return DISABLED_ROUTES[category]
     ? log.warn('Skipping all "%s" routes (disabled by config)', category)
-    : app[method.toLowerCase()](match, validateAppId, callback);
+    : app[method.toLowerCase()](match, validateAppId, validatePermissions, callback);
 }
 
 /**

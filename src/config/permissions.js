@@ -4,6 +4,8 @@
  */
 
 export default Object.freeze({
+  NONE: 'none',
+
   // Users
   CREATE_ACCOUNT: 'create account',
   VIEW_SELF: 'view self',
@@ -39,6 +41,8 @@ export default Object.freeze({
 });
 
 export const descriptions = Object.freeze({
+  NONE: 'Any user can perform the associated action',
+
   // Users
   CREATE_ACCOUNT: 'Permits a user to create an account',
   VIEW_SELF: 'Permist a user to view their own information',

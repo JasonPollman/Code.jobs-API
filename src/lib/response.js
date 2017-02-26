@@ -23,7 +23,6 @@ const DEFAULT_RESPONSE = {
   status: 500,
   success: false,
   message: '',
-  payload: null,
 };
 
 /**

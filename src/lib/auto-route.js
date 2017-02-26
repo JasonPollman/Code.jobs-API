@@ -92,7 +92,7 @@ export function getFindOneHandler(field, model, name, fetchOptions, formatter) {
   return async (req, res) => {
     const value = req.params.field ? req.params.value : req.params[field];
     const payload = await fetchCacheOrDBRecord(field, value, model, name, fetchOptions, formatter);
-    res.respond({ success: true, payload });
+    res.respond({ success: true, payload, count: 1 });
   };
 }
 
@@ -140,6 +140,7 @@ export function getFindManyHandler(model, fetchOptions, formatter) {
 
     res.respond({
       success: true,
+      count: results.length,
       payload: results
         ? results.map(result => formatter(result.get({ plain: true })))
         : null,
@@ -248,7 +249,7 @@ export function getCreateHandler(model, modelName, findOneHandler) {
  * @returns {Array<object>} An array of route objects to be imported into the worker server.
  * @export
  */
-export default function createCachableCRUDRoutes(model, fetchOptions = {}, options = {}) {
+export default function createCachableCRUDRoutes(model, fetchOptions = {}, options) {
   const mname = model.getTableName();
   const nameSingular = singular(mname);
   const namePlural = plural(mname);
@@ -337,7 +338,7 @@ export default function createCachableCRUDRoutes(model, fetchOptions = {}, optio
         handler: findOneHandler,
       },
       {
-        permissions: 'none',
+        permissions: [`view ${namePlural}`],
         specificity: 0,
 
         ...overrides.retrieve,

@@ -69,9 +69,9 @@ export default {
 
   // General model routes
   ..._.mapValues({
-    RolePermission,
-    Role,
-    Permission,
+    rolePermissions: RolePermission,
+    role: Role,
+    permission: Permission,
   }, Model => createCRUDRoutes(Model)),
 
   // Read only logging routes
