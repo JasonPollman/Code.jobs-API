@@ -9,8 +9,9 @@ import config from '../config';
 import log from './logger';
 
 import { has, singular, plural, eStatus, NOOP_IDENT } from './utils';
+import unauthorized from '../routes/unauthorized';
 
-const { ROUTE_CACHE } = config.CACHE_PREFIXES;
+const { ROUTE_CACHE } = config.REDIS_PREFIXES;
 const { MAXIMUM_RECORD_COUNT } = config.DATABASE;
 
 const QUERY_OPERATORS = ['$ne', '$in', '$not', '$notIn', '$gte', '$gt', '$lte', '$lt', '$like', '$ilike', '$notLike', '$notILike'];
@@ -34,8 +35,7 @@ const CRUD_TYPES = ['create', 'retrieve', 'update', 'delete'];
  * @returns {object} The cached, or newly cached record.
  * @export
  */
-export async function fetchCacheOrDBRecord(
-  field, value, model, name, fOpts = {}, formatter = NOOP_IDENT) {
+export async function fetchCacheOrDBRecord(field, value, model, name, fOpts = {}) {
   const MODEL_NAME = name.toUpperCase();
   const FIELD = field.toUpperCase();
 
@@ -46,7 +46,7 @@ export async function fetchCacheOrDBRecord(
 
   // No cache, fetch from the database
   const record = await model.findOne({ ...fOpts, where: { [field]: value } });
-  const result = record ? formatter(record.get({ plain: true })) : null;
+  const result = record ? record.get({ plain: true }) : null;
 
   // Set the cache if the record indeed existed
   if (result) redis.setAsync(cacheKey, result);
@@ -91,8 +91,19 @@ export async function deleteAllCacheForRecordWithId(model, name, id) {
 export function getFindOneHandler(field, model, name, fetchOptions, formatter) {
   return async (req, res) => {
     const value = req.params.field ? req.params.value : req.params[field];
-    const payload = await fetchCacheOrDBRecord(field, value, model, name, fetchOptions, formatter);
-    res.respond({ success: true, payload, count: 1 });
+    const payload = await fetchCacheOrDBRecord(field, value, model, name, fetchOptions);
+
+    let bounced = false;
+    const bounce = () => {
+      bounced = true;
+      return unauthorized.handler.call(this, req, res);
+    };
+
+    const formatted = formatter(req, payload, 'one', bounce);
+
+    if (!bounced) {
+      res.respond({ success: true, payload: formatted, count: formatted ? 1 : 0 });
+    }
   };
 }
 
@@ -107,7 +118,7 @@ export function getFindOneHandler(field, model, name, fetchOptions, formatter) {
  * @export
  */
 export function getFindManyHandler(model, fetchOptions, formatter) {
-  return async (req, res) => {
+  return async function findManyHandler(req, res) {
     // Get options for ordering and offset for the query params
     const { limit = 1000, offset = 0, orderBy = 'id', direction = 'DESC' } = req.query;
     const sortOptions = [orderBy, direction === 'ASC' ? 'ASC' : 'DESC'];
@@ -138,13 +149,23 @@ export function getFindManyHandler(model, fetchOptions, formatter) {
       where,
     });
 
-    res.respond({
-      success: true,
-      count: results.length,
-      payload: results
-        ? results.map(result => formatter(result.get({ plain: true })))
-        : null,
-    });
+    // Bounces the user to unauthorized
+    let bounced = false;
+    const bounce = () => {
+      bounced = true;
+      return unauthorized.handler.call(this, req, res);
+    };
+
+    const formatted = _.compact(results.map(result =>
+      formatter(req, result.get({ plain: true }), 'many', bounce)));
+
+    if (!bounced) {
+      res.respond({
+        success: true,
+        count: formatted.length,
+        payload: results ? formatted : null,
+      });
+    }
   };
 }
 

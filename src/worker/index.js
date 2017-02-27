@@ -22,6 +22,7 @@ import { sortRoutes, validateRoute, has, hrtimeToMilliseconds } from '../lib/uti
 import {
   validateAppIdentifier,
   validateUserPermissions,
+  authenticateUser,
 } from '../routewares';
 
 process.title = config.PROCESS_TITLES.WORKER;
@@ -49,6 +50,7 @@ const httpsEnabled = _.isObject(HTTPS_OPTIONS);
 const DEFAULT_ROUTE_PROPS = {
   method: 'all',
   requiresValidAppId: true,
+  requiresAuth: true,
   permissions: [],
   specificity: 0,
 };
@@ -72,12 +74,13 @@ function digestRoute(route, category) {
 /**
  * Wraps the given route callback with a try/catch and send error responses accordingly.
  * @param {function} callback The route callback to wrap
+ * @param {object} route The original route object.
  * @returns {function} The wrapped route callback
  */
-function middlewareWrapper(callback) {
+function middlewareWrapper(callback, route) {
   return async (req, res, ...rest) => {
     try {
-      const context = { app, server, models };
+      const context = { app, server, models, route };
       return await callback.call(context, req, res, ...rest);
     } catch (e) {
       // If the error didn't define a status, make it 500, and
@@ -112,15 +115,25 @@ function initializeMiddleware(middleware, name) {
  * @returns {undefined}
  */
 function initializeRoute(route) {
-  const { category, method, match, handler, requiresValidAppId, permissions } = route;
-  const callback = middlewareWrapper(handler);
+  const {
+    category,
+    method,
+    match,
+    handler,
+    requiresValidAppId,
+    requiresAuth,
+    permissions,
+  } = route;
 
-  const validateAppId = middlewareWrapper(validateAppIdentifier(requiresValidAppId));
-  const validatePermissions = middlewareWrapper(validateUserPermissions(permissions));
+  const callback = middlewareWrapper(handler, route);
+
+  const validateAppId = middlewareWrapper(validateAppIdentifier(requiresValidAppId), route);
+  const validatePermissions = middlewareWrapper(validateUserPermissions(permissions), route);
+  const authenticate = middlewareWrapper(authenticateUser(requiresAuth), route);
 
   return DISABLED_ROUTES[category]
     ? log.warn('Skipping all "%s" routes (disabled by config)', category)
-    : app[method.toLowerCase()](match, validateAppId, validatePermissions, callback);
+    : app[method.toLowerCase()](match, validateAppId, authenticate, validatePermissions, callback);
 }
 
 /**

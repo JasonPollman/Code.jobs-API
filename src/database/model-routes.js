@@ -8,6 +8,7 @@ import _ from 'lodash';
 import createCRUDRoutes from '../lib/auto-route';
 import models from './models';
 import permissions from '../config/permissions';
+import roles from '../config/roles';
 
 const {
   User,
@@ -28,6 +29,10 @@ const {
   CREATE_ACCOUNT,
 } = permissions;
 
+const {
+  ADMIN,
+} = roles;
+
 export default {
   // User routes
   user: createCRUDRoutes(User,
@@ -47,12 +52,19 @@ export default {
       retrieve: {
         permissions: [VIEW_SELF, VIEW_OTHERS],
         // Format the results of the values returned from the database
-        formatResults: (result) => {
+        formatResults: (request, result, type, bounce) => {
           const user = result;
           const role = user.role || { name: null, permissions: [] };
+
           user.role = role.name;
           user.permissions = role.permissions.map(permission => permission.name);
-          return user;
+
+          const permitted = request.user.role === ADMIN.name
+            || (request.user.id !== user.id && _.includes(request.user.permissions, VIEW_OTHERS))
+            || (request.user.id === user.id && _.includes(request.user.permissions, VIEW_SELF));
+
+          if (type === 'one') return permitted ? user : bounce();
+          return permitted ? user : null;
         },
       },
       update: {

@@ -7,7 +7,7 @@ import redis from '../lib/redis';
 import config from '../config';
 
 const { REQUESTS_PER_MINUTE_LIMIT } = config.SERVER;
-const { REQUESTS_PER_MINUTE } = config.CACHE_PREFIXES;
+const { REQUESTS_PER_MINUTE } = config.REDIS_PREFIXES;
 const allowed = REQUESTS_PER_MINUTE_LIMIT > 0 ? REQUESTS_PER_MINUTE_LIMIT : 'Inifinty';
 
 /**

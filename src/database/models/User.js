@@ -28,10 +28,10 @@ const {
  * @param {object} user The user insert/update object.
  * @returns {undefined}
  */
-async function hashPassword(user) {
+function hashPassword(user) {
   if (user.password) {
     const usr = user;
-    usr.password = await hashUserPassword(usr.password, usr.email, PASSWORD_HASH_ALGORITHM);
+    usr.password = hashUserPassword(usr.password, usr.email, PASSWORD_HASH_ALGORITHM);
   }
 }
 

@@ -313,7 +313,13 @@ const coercions = {
 
   // Warn about route permissions being disabled in production
   SERVER_DISABLE_ROUTE_PERMISSIONS: (val) => {
-    if (NODE_ENV !== 'production' || val !== true) return val;
+    if (NODE_ENV !== 'production' || val !== true) {
+      CONFIG_WARNINGS.push(
+        'DISABLE_ROUTE_PERMISSIONS is set to TRUE\n' +
+        '*** All routes are available to all users! ***',
+      );
+      return val;
+    }
 
     CONFIG_WARNINGS.push(
       'DISABLE_ROUTE_PERMISSIONS is set to TRUE, but NODE_ENV is "production".\n' +
@@ -354,10 +360,12 @@ const constants = {
     WORKER: `${config.APPLICATION_NAME} Worker`,
   },
 
-  CACHE_PREFIXES: {
+  REDIS_PREFIXES: {
     HEARTBEAT: 'HEARTBEAT',
-    REQUESTS_PER_MINUTE: 'SERVER_IP_REQUESTS_PER_MINUTE',
     ROUTE_CACHE: 'ROUTE_CACHE',
+    USER_TOKENS: 'USER_TOKENS',
+    TOKEN_DATA: 'TOKEN_DATA',
+    REQUESTS_PER_MINUTE: 'SERVER_IP_REQUESTS_PER_MINUTE',
   },
 };
 

@@ -55,7 +55,7 @@ export default {
     }));
 
     // Create all the role/permission associations
-    return await Promise.all(_.map(roleRecords, async (inserted, name) => {
+    return Promise.all(_.map(roleRecords, async (inserted, name) => {
       const roleId = inserted.dataValues.id;
       const role = roles[name];
 

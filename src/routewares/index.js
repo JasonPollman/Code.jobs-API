@@ -5,6 +5,7 @@
 
 import validateAppIdentifier from './validate-app-id';
 import validateUserPermissions from './validate-permissions';
+import authenticateUser from './authenticate-user';
 
 /**
  * All route based middlewares *must* be defined here, otherwise they won't get picked up!
@@ -15,6 +16,7 @@ import validateUserPermissions from './validate-permissions';
  */
 export default {
   // Please keep these in alphabetical order!
+  authenticateUser,
   validateAppIdentifier,
   validateUserPermissions,
 };

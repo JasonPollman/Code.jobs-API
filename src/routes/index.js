@@ -9,6 +9,7 @@ import modelBasedRoutes from '../database/model-routes';
 import catchall from './catch';
 import error from './error';
 import ping from './ping';
+import login from './login';
 import unauthorized from './unauthorized';
 
 const modelBasedRoutesMapped = _.mapKeys(modelBasedRoutes, (val, key) => `model:${key}`);
@@ -25,6 +26,7 @@ export default {
   // Please keep these in alphabetical order!
   catchall,
   error,
+  login,
   ping,
   unauthorized,
 };

@@ -54,7 +54,7 @@ export default {
   },
   // Used to get a cache key with the provided arguments
   key(...args) {
-    return args.join('::');
+    return args.join(':');
   },
   // Set an object and return a promise
   async setAsync(key, value) {
@@ -69,7 +69,7 @@ export default {
   },
   // Get an object and return a promise
   async getAllAsync(...keys) {
-    return await Promise.map(keys, exports.default.getAsync);
+    return Promise.map(keys, exports.default.getAsync);
   },
   // Delete the list of keys provided
   async delAsync(...keys) {

@@ -159,9 +159,9 @@ export function validateRoute(httpRoute, category) {
     route.permissions = [];
   }
 
-  if (!_.isArray(route.permissions)) {
+  if (!_.isFunction(route.permissions) && !_.isArray(route.permissions)) {
     throw new TypeError(
-      `Route listed in "${category}" is invalid. Property permissions must be either a string or array.`);
+      `Route listed in "${category}" is invalid. Property permissions must be either a string, array, or function.`);
   }
 
   return route;

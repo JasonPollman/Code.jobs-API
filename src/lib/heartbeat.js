@@ -27,7 +27,7 @@ const {
  */
 export function heartbeatWorkerStatuses() {
   return Promise.all(_.times(config.CLUSTER.WORKER_COUNT, n =>
-    redis.getAsync(redis.key(config.CACHE_PREFIXES.HEARTBEAT, 'WORKER', n + 1))));
+    redis.getAsync(redis.key(config.REDIS_PREFIXES.HEARTBEAT, 'WORKER', n + 1))));
 }
 
 /**
@@ -35,7 +35,7 @@ export function heartbeatWorkerStatuses() {
  * @export
  */
 export function heartbeatMasterStatus() {
-  return redis.getAsync(redis.key(config.CACHE_PREFIXES.HEARTBEAT, 'MASTER'));
+  return redis.getAsync(redis.key(config.REDIS_PREFIXES.HEARTBEAT, 'MASTER'));
 }
 
 /**
@@ -54,7 +54,7 @@ export function workerPulse() {
     statistics: !SERVER.DISABLED_MIDDLEWARES.requestStats ? requestStatistics : undefined,
   };
 
-  const key = redis.key(config.CACHE_PREFIXES.HEARTBEAT, 'WORKER', WORKER_NUM);
+  const key = redis.key(config.REDIS_PREFIXES.HEARTBEAT, 'WORKER', WORKER_NUM);
   redis.setAsync(key, status);
   redis.publish(key, status);
 }
@@ -73,7 +73,7 @@ export function masterPulse() {
     memory: process.memoryUsage(),
   };
 
-  const key = redis.key(config.CACHE_PREFIXES.HEARTBEAT, 'MASTER');
+  const key = redis.key(config.REDIS_PREFIXES.HEARTBEAT, 'MASTER');
   redis.setAsync(key, status);
   redis.publish(key, status);
 }
