@@ -8,6 +8,7 @@ import unauthorized from '../routes/unauthorized';
 import config from '../config';
 import redis from '../lib/redis';
 import { md5 } from '../lib/utils';
+import { User } from '../database/models';
 
 import {
   get as getJWT,
@@ -16,6 +17,8 @@ import {
   validate as validateJWT,
 } from '../lib/jwt';
 
+const { NODE_ENV } = config;
+const { DISABLE_ROUTE_AUTHENTICATION } = config.SERVER;
 const { USER_TOKENS } = config.REDIS_PREFIXES;
 
 /**
@@ -40,9 +43,13 @@ async function setNextToken(user, res) {
  */
 export default function authenticateUserMiddleware(routeRequiresAuth) {
   return async function authenticateUser(req, res, next) {
-    if (!routeRequiresAuth) return next();
-
     const request = req;
+
+    if (!routeRequiresAuth || (DISABLE_ROUTE_AUTHENTICATION && NODE_ENV !== 'production')) {
+      request.user = { role: 'admin' };
+      return next();
+    }
+
     const bounce = () => unauthorized.handler.call(this, request, res);
 
     // Grab Authorization header
@@ -61,8 +68,12 @@ export default function authenticateUserMiddleware(routeRequiresAuth) {
     const session = await getJWT(token);
     if (!session) return bounce();
 
+    // Lookup the user
+    const user = await User.findOne({ where: { id: session.id } });
+    if (!user) return bounce();
+
     // Session is valid
-    request.user = session;
+    request.user = user.pretty();
     delJWT(token);
     await setNextToken(request.user, res);
     return next();

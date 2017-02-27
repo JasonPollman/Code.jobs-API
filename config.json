@@ -57,6 +57,9 @@
       // Disable route permissions and EXPOSE all routes to all users.
       // *** This setting is IGNORED in production ***
       "DISABLE_ROUTE_PERMISSIONS": false,
+      // Disables all route authentication.
+      // *** This setting is IGNORED in production ***
+      "DISABLE_ROUTE_AUTHENTICATION": false,
       // CORS Header Settings
       // Used by the CORS middleware, disabled the "cors" middleware will make these
       // settings irrelevant. These can be set to null to ignore a specific header.
@@ -184,6 +187,7 @@
   "development": {
     "LOG_LEVEL": "trace",
     "SERVER": {
+      "DISABLE_ROUTE_AUTHENTICATION": false,
       "DISABLE_ROUTE_PERMISSIONS": false,
       "APP_ID_VALIDATION_ENABLED": false,
       "REQUESTS_PER_MINUTE_LIMIT": 0,

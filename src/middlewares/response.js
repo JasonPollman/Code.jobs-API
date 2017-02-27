@@ -19,15 +19,15 @@ export default function compliantResponse(request, response, next) {
 
   res.respond = (data) => {
     const responseData = _.isError(data) ? data : { status: res.statusCode, ...data };
+    const body = new JSONResponse(responseData);
     const token = res.nextToken;
-    const body = new JSONResponse({ token, ...responseData });
 
     // Emitted once the response is actually sent off and all headers have been added, etc.
     res.once('finish', () => res.emit('transmitted', body, request, response));
 
     // Emitted now, just prior to sending the response.
     res.emit('transmitting', body, request, response);
-    res.json({ ...body });
+    res.json({ token, ...body });
   };
 
   next();

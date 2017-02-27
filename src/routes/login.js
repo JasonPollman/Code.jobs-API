@@ -61,7 +61,7 @@ export default {
     // Attempt to log the user in
     const pass = await hashUserPassword(password, email, PASSWORD_HASH_ALGORITHM);
     const record = await User.findOne({ where: { email, password: pass } });
-    const user = record ? record.get({ plain: true }) : null;
+    const user = record ? record.pretty() : null;
 
     // Account with email/password combo didn't exist
     if (!user) {

@@ -3,6 +3,7 @@
  * @file
  */
 
+import _ from 'lodash';
 import { INTEGER, STRING } from 'sequelize';
 import { hashUserPassword } from '../../lib/utils';
 import sequelize from '../';
@@ -118,6 +119,17 @@ export default sequelize.define('user',
     },
   },
   {
+    instanceMethods: {
+      pretty() {
+        const values = this.get({ plain: true });
+        const role = values.role || { name: null, permissions: [] };
+
+        values.role = role.name;
+        values.permissions = role.permissions.map(permission => permission.name);
+        console.log(_.omit(values, 'password', 'roleId'));
+        return _.omit(values, 'password', 'roleId');
+      },
+    },
     hooks: {
       beforeCreate: hashPassword,
       beforeUpdate: hashPassword,

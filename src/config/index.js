@@ -104,6 +104,11 @@ const validations = conf => [
     'Configuration setting SERVER.DISABLE_ROUTE_PERMISSIONS must be a boolean!',
   ],
   [
+    'boolean',
+    typeof conf.SERVER.DISABLE_ROUTE_AUTHENTICATION,
+    'Configuration setting SERVER.DISABLE_ROUTE_AUTHENTICATION must be a boolean!',
+  ],
+  [
     true,
     _.isPlainObject(conf.SERVER.DISABLED_MIDDLEWARES)
       && _.every(conf.SERVER.DISABLED_MIDDLEWARES, _.isBoolean),
@@ -313,17 +318,40 @@ const coercions = {
 
   // Warn about route permissions being disabled in production
   SERVER_DISABLE_ROUTE_PERMISSIONS: (val) => {
-    if (NODE_ENV !== 'production' || val !== true) {
-      CONFIG_WARNINGS.push(
-        'DISABLE_ROUTE_PERMISSIONS is set to TRUE\n' +
-        '*** All routes are available to all users! ***',
-      );
+    if (NODE_ENV !== 'production') {
+      if (val === true) {
+        CONFIG_WARNINGS.push(
+          'DISABLE_ROUTE_PERMISSIONS is set to TRUE\n' +
+          '*** All routes are available to all users! ***',
+        );
+      }
+
       return val;
     }
 
     CONFIG_WARNINGS.push(
       'DISABLE_ROUTE_PERMISSIONS is set to TRUE, but NODE_ENV is "production".\n' +
       'This isn\'t allowed. Route permissions have been automatically re-enabled.',
+    );
+    return false;
+  },
+
+  // Warn about route authentication being disabled in production
+  SERVER_DISABLE_ROUTE_AUTHENTICATION: (val) => {
+    if (NODE_ENV !== 'production') {
+      if (val === true) {
+        CONFIG_WARNINGS.push(
+          'DISABLE_ROUTE_AUTHENTICATION is set to TRUE\n' +
+          '*** This means user authentication is disabled! ***',
+        );
+      }
+
+      return val;
+    }
+
+    CONFIG_WARNINGS.push(
+      'DISABLE_ROUTE_AUTHENTICATION is set to TRUE, but NODE_ENV is "production".\n' +
+      'This isn\'t allowed. Route authentication has been automatically re-enabled.',
     );
     return false;
   },
